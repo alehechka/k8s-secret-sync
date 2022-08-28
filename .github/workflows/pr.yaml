@@ -20,10 +20,10 @@ jobs:
         run: go mod download
 
       - name: Build Executable
-        run: go build cmd/kube-secrets-sync/main.go
+        run: go build cmd/kube-secret-sync/main.go
 
       - name: Run unit tests
         run: go test ./... --cover
 
       - name: Build Docker image
-        run: docker build -t kube-secrets-sync .
+        run: docker build -t kube-secret-sync .
