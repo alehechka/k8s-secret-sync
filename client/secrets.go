@@ -50,7 +50,12 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 		if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
 			log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
 
-			if secretsAreEqual(secret, namespaceSecret) {
+			if !config.ForceSync && !isManagedBy(namespaceSecret) {
+				log.Debugf("Existing secret is not managed and will not be force updated: %s/%s", namespace.Name, secret.Name)
+				continue
+			}
+
+			if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
 				log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
 				continue
 			}
@@ -126,7 +131,7 @@ func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
-	annotations["managed-by"] = "kube-secret-sync"
+	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
@@ -142,4 +147,10 @@ func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
 		Type:       secret.Type,
 	}
 
+}
+
+func isManagedBy(secret *v1.Secret) bool {
+	managedBy, ok := secret.Annotations[constants.ManagedByAnnotationKey]
+
+	return ok && managedBy == constants.ManagedByAnnotationValue
 }

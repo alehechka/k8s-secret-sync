@@ -20,6 +20,7 @@ const (
 	secretsNamespaceFlag  = "secrets-namespace"
 	outOfClusterFlag      = "out-of-cluster"
 	kubeconfigFlag        = "kubeconfig"
+	forceSyncFlag         = "force"
 )
 
 func kubeconfig() *cli.StringFlag {
@@ -71,6 +72,11 @@ var startFlags = []cli.Flag{
 		Usage:   "Will use the default ~/.kube/config file on the local machine to connect to the cluster externally.",
 		Aliases: []string{"local"},
 	},
+	&cli.BoolFlag{
+		Name:    forceSyncFlag,
+		Usage:   "Forces synchronization of all secrets, not just kube-secret-sync managed secrets.",
+		EnvVars: []string{"FORCE"},
+	},
 }
 
 func startKubeSecretSync(ctx *cli.Context) (err error) {
@@ -86,6 +92,8 @@ func startKubeSecretSync(ctx *cli.Context) (err error) {
 		IncludeNamespaces: ctx.StringSlice(includeNamespacesFlag),
 
 		SecretsNamespace: ctx.String(secretsNamespaceFlag),
+
+		ForceSync: ctx.Bool(forceSyncFlag),
 
 		OutOfCluster: ctx.Bool(outOfClusterFlag),
 		KubeConfig:   ctx.String(kubeconfigFlag),
