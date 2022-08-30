@@ -55,7 +55,7 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 				continue
 			}
 
-			if secretsAreEqual(secret, namespaceSecret) {
+			if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
 				log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
 				continue
 			}
