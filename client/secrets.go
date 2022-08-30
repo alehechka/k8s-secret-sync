@@ -50,7 +50,7 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 		if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
 			log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
 
-			if reflect.DeepEqual(namespaceSecret.Data, secret.Data) {
+			if secretsAreEqual(secret, namespaceSecret) {
 				log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
 				continue
 			}
@@ -137,4 +137,12 @@ func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 
 func getSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) (*v1.Secret, error) {
 	return clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+}
+
+func secretsAreEqual(a, b *v1.Secret) bool {
+	return (a.Type == b.Type &&
+		reflect.DeepEqual(a.Data, b.Data) &&
+		reflect.DeepEqual(a.StringData, b.StringData) &&
+		reflect.DeepEqual(a.Labels, b.Labels) &&
+		reflect.DeepEqual(a.Annotations, b.Annotations))
 }
