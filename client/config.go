@@ -47,6 +47,8 @@ type SyncConfig struct {
 
 	SecretsNamespace string
 
+	ForceSync bool
+
 	OutOfCluster bool
 	KubeConfig   string
 }
