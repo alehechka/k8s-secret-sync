@@ -15,8 +15,6 @@ import (
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
 	log.Infof("[%s] Secret added: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
-	log.Debugf("%#v", *config)
-
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("Secret is excluded from sync: %s", secret.Name)
 		return constants.ErrExcludedSecret

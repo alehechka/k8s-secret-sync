@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -11,6 +12,8 @@ import (
 // SyncSecrets syncs Secrets across all selected Namespaces
 func SyncSecrets(config *SyncConfig) (err error) {
 	ctx := context.Background()
+
+	log.Debugf("Starting with following configuration: %#v", *config)
 
 	clientset, err := clientset(config)
 	if err != nil {
