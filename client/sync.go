@@ -9,7 +9,7 @@ import (
 )
 
 // SyncSecrets syncs Secrets across all selected Namespaces
-func SyncSecrets(config *Config) (err error) {
+func SyncSecrets(config *SyncConfig) (err error) {
 	ctx := context.Background()
 
 	clientset, err := clientset(config)

@@ -18,7 +18,7 @@ var ErrExcludedSecret = errors.New("secret was marked as excluded")
 // ErrNotIncludedSecret is the error returned when an event for a Secret that is not included is triggered.
 var ErrNotIncludedSecret = errors.New("secret was not marked as included")
 
-func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Config, secret *v1.Secret) error {
+func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
 	log.Infof("[%s] Secret added: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	log.Debugf("%#v", *config)
@@ -100,11 +100,11 @@ func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	return err
 }
 
-func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Config, secret *v1.Secret) {
+func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
 	log.Infof("[%s] Secret modified: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 }
 
-func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Config, secret *v1.Secret) {
+func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
 	log.Infof("[%s] Secret deleted: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 }
 

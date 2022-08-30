@@ -15,7 +15,9 @@ ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-RUN go build cmd/kube-secret-sync/main.go
+ARG RELEASE_VERSION=latest
+
+RUN go build -ldflags "-X github.com/alehechka/kube-secret-sync.Version=${RELEASE_VERSION}" cmd/kube-secret-sync/main.go 
 
 # SERVE
 
@@ -24,4 +26,3 @@ FROM scratch
 COPY --from=go-builder /app/main kube-secret-sync
 
 CMD [ "/kube-secret-sync", "start" ]
-# Error invoking remote method 'docker-run-container': Error: (HTTP code 400) unexpected - failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: exec: "/bin/sh": stat /bin/sh: no such file or directory: unknown
