@@ -118,9 +118,7 @@ func getSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, 
 func secretsAreEqual(a, b *v1.Secret) bool {
 	return (a.Type == b.Type &&
 		reflect.DeepEqual(a.Data, b.Data) &&
-		reflect.DeepEqual(a.StringData, b.StringData) &&
-		reflect.DeepEqual(a.Labels, b.Labels) &&
-		reflect.DeepEqual(a.Annotations, b.Annotations))
+		reflect.DeepEqual(a.StringData, b.StringData))
 }
 
 func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
