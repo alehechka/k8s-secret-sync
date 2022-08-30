@@ -2,21 +2,15 @@ package client
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
+	"github.com/alehechka/kube-secret-sync/constants"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/client-go/kubernetes"
 )
-
-// ErrExcludedSecret is the error returned when an event for a Secret that has been excluded is triggered.
-var ErrExcludedSecret = errors.New("secret was marked as excluded")
-
-// ErrNotIncludedSecret is the error returned when an event for a Secret that is not included is triggered.
-var ErrNotIncludedSecret = errors.New("secret was not marked as included")
 
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
 	log.Infof("[%s] Secret added: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
@@ -25,12 +19,12 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("Secret is excluded from sync: %s", secret.Name)
-		return ErrExcludedSecret
+		return constants.ErrExcludedSecret
 	}
 
 	if !config.IncludeSecrets.IsIncluded(secret.Name) {
 		log.Debugf("Secret is not included for sync: %s", secret.Name)
-		return ErrNotIncludedSecret
+		return constants.ErrNotIncludedSecret
 	}
 
 	namespaces, err := listNamespaces(ctx, clientset)
