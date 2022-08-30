@@ -68,19 +68,7 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) error {
 	log.Infof("Creating secret: %s/%s", namespace.Name, secret.Name)
 
-	newSecret := &v1.Secret{
-		TypeMeta: secret.TypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        secret.Name,
-			Namespace:   namespace.Name,
-			Labels:      secret.Labels,
-			Annotations: secret.Annotations,
-		},
-		Immutable:  secret.Immutable,
-		Data:       secret.Data,
-		StringData: secret.StringData,
-		Type:       secret.Type,
-	}
+	newSecret := prepareSecret(namespace, secret)
 
 	_, err := clientset.CoreV1().Secrets(namespace.Name).Create(ctx, newSecret, metav1.CreateOptions{})
 
@@ -113,19 +101,7 @@ func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (updated *v1.Secret, err error) {
 	log.Infof("Updating secret: %s/%s", namespace.Name, secret.Name)
 
-	updateSecret := &v1.Secret{
-		TypeMeta: secret.TypeMeta,
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        secret.Name,
-			Namespace:   namespace.Name,
-			Labels:      secret.Labels,
-			Annotations: secret.Annotations,
-		},
-		Immutable:  secret.Immutable,
-		Data:       secret.Data,
-		StringData: secret.StringData,
-		Type:       secret.Type,
-	}
+	updateSecret := prepareSecret(namespace, secret)
 
 	updated, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
@@ -145,4 +121,27 @@ func secretsAreEqual(a, b *v1.Secret) bool {
 		reflect.DeepEqual(a.StringData, b.StringData) &&
 		reflect.DeepEqual(a.Labels, b.Labels) &&
 		reflect.DeepEqual(a.Annotations, b.Annotations))
+}
+
+func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
+	annotations := secret.Annotations
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+	annotations["managed-by"] = "kube-secret-sync"
+
+	return &v1.Secret{
+		TypeMeta: secret.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        secret.Name,
+			Namespace:   namespace.Name,
+			Labels:      secret.Labels,
+			Annotations: annotations,
+		},
+		Immutable:  secret.Immutable,
+		Data:       secret.Data,
+		StringData: secret.StringData,
+		Type:       secret.Type,
+	}
+
 }
