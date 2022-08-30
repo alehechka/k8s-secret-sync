@@ -13,7 +13,7 @@ import (
 )
 
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s] Secret added: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("Secret added: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("Secret is excluded from sync: %s", secret.Name)
@@ -47,17 +47,17 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 			continue
 		}
 
-		// Secret already exists
 		if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
 			log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
 
-			// Existing secret contains same data
 			if reflect.DeepEqual(namespaceSecret.Data, secret.Data) {
 				log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
 				continue
 			}
 
-			log.Debugf("TODO: update secret to match new secret: %s/%s", namespace.Name, secret.Name)
+			if err := deleteSecret(ctx, clientset, namespace.Name, secret.Name); err != nil {
+				continue
+			}
 		}
 
 		createSecret(ctx, clientset, namespace, secret)
@@ -93,11 +93,22 @@ func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 }
 
 func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("[%s] Secret modified: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("Secret modified: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 }
 
 func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("[%s] Secret deleted: %s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("Secret deleted: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+}
+
+func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) (err error) {
+	log.Infof("Deleting secret: %s/%s", namespace, name)
+
+	err = clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	if err != nil {
+		log.Errorf("Failed to delete secret %s/%s: %s", namespace, name, err.Error())
+	}
+
+	return
 }
 
 func getSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) (*v1.Secret, error) {
