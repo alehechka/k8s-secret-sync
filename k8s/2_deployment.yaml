@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-secret-sync
+  namespace: kube-secret-sync
+  labels:
+    name: kube-secret-sync
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: kube-secret-sync
+  template:
+    metadata:
+      labels:
+        name: kube-secret-sync
+    spec:
+      automountServiceAccountToken: true
+      serviceAccountName: kube-secret-sync
+      containers:
+        - name: kube-secret-sync
+          image: 'ghcr.io/alehechka/kube-secret-sync:latest'
+          env:
+            - name: DEBUG
+              value: 'true'
+          resources:
+            requests:
+              cpu: 0.1
+              memory: 15Mi
+            limits:
+              cpu: 0.2
+              memory: 30Mi
