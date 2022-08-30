@@ -3,6 +3,11 @@ name: Pull Request Verification
 on:
   pull_request:
 
+# Kill the workflow if the PR is updated with a new commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pr:
     name: Pull Request Verification
