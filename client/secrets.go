@@ -55,9 +55,8 @@ func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 				continue
 			}
 
-			if err := deleteSecret(ctx, clientset, namespace.Name, secret.Name); err != nil {
-				continue
-			}
+			updateSecret(ctx, clientset, namespace, secret)
+			continue
 		}
 
 		createSecret(ctx, clientset, namespace, secret)
@@ -106,6 +105,31 @@ func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	err = clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
 	if err != nil {
 		log.Errorf("Failed to delete secret %s/%s: %s", namespace, name, err.Error())
+	}
+
+	return
+}
+
+func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (updated *v1.Secret, err error) {
+	log.Infof("Updating secret: %s/%s", namespace.Name, secret.Name)
+
+	updateSecret := &v1.Secret{
+		TypeMeta: secret.TypeMeta,
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        secret.Name,
+			Namespace:   namespace.Name,
+			Labels:      secret.Labels,
+			Annotations: secret.Annotations,
+		},
+		Immutable:  secret.Immutable,
+		Data:       secret.Data,
+		StringData: secret.StringData,
+		Type:       secret.Type,
+	}
+
+	updated, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
+	if err != nil {
+		log.Errorf("Failed to update secret %s/%s: %s", namespace.Name, secret.Name, err.Error())
 	}
 
 	return
