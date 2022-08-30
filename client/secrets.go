@@ -12,9 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("Secret added: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
+func syncSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("Secret is excluded from sync: %s", secret.Name)
 		return constants.ErrExcludedSecret
@@ -84,14 +82,6 @@ func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	return err
 }
 
-func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("Secret modified: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-}
-
-func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("Secret deleted: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-}
-
 func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) (err error) {
 	log.Infof("Deleting secret: %s/%s", namespace, name)
 
@@ -121,9 +111,15 @@ func getSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, 
 }
 
 func secretsAreEqual(a, b *v1.Secret) bool {
+	aAnns := a.Annotations
+	bAnns := b.Annotations
+	delete(aAnns, constants.ManagedByAnnotationKey)
+	delete(bAnns, constants.ManagedByAnnotationKey)
+
 	return (a.Type == b.Type &&
 		reflect.DeepEqual(a.Data, b.Data) &&
-		reflect.DeepEqual(a.StringData, b.StringData))
+		reflect.DeepEqual(a.StringData, b.StringData) &&
+		reflect.DeepEqual(aAnns, bAnns))
 }
 
 func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {

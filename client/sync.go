@@ -7,6 +7,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
 )
 
 // SyncSecrets syncs Secrets across all selected Namespaces
@@ -40,4 +41,24 @@ func SyncSecrets(config *SyncConfig) (err error) {
 	}
 
 	return nil
+}
+
+func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
+	log.Infof("Secret added: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+
+	return syncSecret(ctx, clientset, config, secret)
+}
+
+func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
+	if secret.DeletionTimestamp != nil {
+		return nil
+	}
+
+	log.Infof("Secret modified: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+
+	return syncSecret(ctx, clientset, config, secret)
+}
+
+func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
+	log.Infof("Secret deleted: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 }
