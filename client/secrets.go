@@ -16,34 +16,34 @@ type SecretSyncFunc func(context.Context, *kubernetes.Clientset, *SyncConfig, v1
 
 func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret, sync SecretSyncFunc) error {
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
-		log.Debugf("Secret is excluded from sync: %s", secret.Name)
+		log.Debugf("[%s/%s]: Secret is excluded from sync", secret.Namespace, secret.Name)
 		return constants.ErrExcludedSecret
 	}
 
 	if !config.IncludeSecrets.IsIncluded(secret.Name) {
-		log.Debugf("Secret is not included for sync: %s", secret.Name)
+		log.Debugf("[%s/%s]: Secret is not included for sync", secret.Namespace, secret.Name)
 		return constants.ErrNotIncludedSecret
 	}
 
 	namespaces, err := listNamespaces(ctx, clientset)
 	if err != nil {
-		log.Errorf("Failed to list namespaces during add: %s", err.Error())
+		log.Errorf("Failed to list namespaces: %s", err.Error())
 		return err
 	}
 
 	for _, namespace := range namespaces.Items {
 		if namespace.Name == config.SecretsNamespace {
-			log.Debugf("Skipping secrets namespace: %s", namespace.Name)
+			log.Debugf("[%s]: Skipping secrets namespace", namespace.Name)
 			continue
 		}
 
 		if config.ExcludeNamespaces.IsExcluded(namespace.Name) {
-			log.Debugf("Namespace has been excluded from sync: %s", namespace.Name)
+			log.Debugf("[%s]: Namespace has been excluded from sync", namespace.Name)
 			continue
 		}
 
 		if !config.IncludeNamespaces.IsIncluded(namespace.Name) {
-			log.Debugf("Namespace is not included for sync: %s", namespace.Name)
+			log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
 			continue
 		}
 
@@ -55,15 +55,15 @@ func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, c
 
 func syncAddedModifiedSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
 	if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
-		log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
+		log.Debugf("[%s/%s]: Secret already exists", namespace.Name, secret.Name)
 
 		if !config.ForceSync && !isManagedBy(namespaceSecret) {
-			log.Debugf("Existing secret is not managed and will not be force updated: %s/%s", namespace.Name, secret.Name)
+			log.Debugf("[%s/%s]: Existing secret is not managed and will not be force updated", namespace.Name, secret.Name)
 			return nil
 		}
 
 		if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
-			log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
+			log.Debugf("[%s/%s]: Existing secret contains same data", namespace.Name, secret.Name)
 			return nil
 		}
 
@@ -81,43 +81,43 @@ func syncDeletedSecret(ctx context.Context, clientset *kubernetes.Clientset, con
 		}
 	}
 
-	log.Debugf("Secret not found for deletion: %s/%s", namespace.Name, secret.Name)
+	log.Debugf("[%s/%s]: Secret not found for deletion", namespace.Name, secret.Name)
 	return nil
 }
 
 func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) error {
-	log.Infof("Creating secret: %s/%s", namespace.Name, secret.Name)
+	log.Infof("[%s/%s]: Creating secret", namespace.Name, secret.Name)
 
 	newSecret := prepareSecret(namespace, secret)
 
 	_, err := clientset.CoreV1().Secrets(namespace.Name).Create(ctx, newSecret, metav1.CreateOptions{})
 
 	if err != nil {
-		log.Errorf("Failed to create secret %s/%s: %s", namespace.Name, secret.Name, err.Error())
+		log.Errorf("[%s/%s]: Failed to create secret - %s", namespace.Name, secret.Name, err.Error())
 	}
 
 	return err
 }
 
 func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (err error) {
-	log.Infof("Deleting secret: %s/%s", namespace.Name, secret.Name)
+	log.Infof("[%s/%s]: Deleting secret", namespace.Name, secret.Name)
 
 	err = clientset.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 	if err != nil {
-		log.Errorf("Failed to delete secret %s/%s: %s", namespace.Name, secret.Name, err.Error())
+		log.Errorf("[%s/%s]: Failed to delete secret - %s", namespace.Name, secret.Name, err.Error())
 	}
 
 	return
 }
 
 func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (updated *v1.Secret, err error) {
-	log.Infof("Updating secret: %s/%s", namespace.Name, secret.Name)
+	log.Infof("[%s/%s]: Updating secret", namespace.Name, secret.Name)
 
 	updateSecret := prepareSecret(namespace, secret)
 
 	updated, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
-		log.Errorf("Failed to update secret %s/%s: %s", namespace.Name, secret.Name, err.Error())
+		log.Errorf("[%s/%s]: Failed to update secret - %s", namespace.Name, secret.Name, err.Error())
 	}
 
 	return

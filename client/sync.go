@@ -44,7 +44,7 @@ func SyncSecrets(config *SyncConfig) (err error) {
 }
 
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("Secret added: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("[%s/%s]: Secret added", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
 }
@@ -54,13 +54,13 @@ func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config 
 		return nil
 	}
 
-	log.Infof("Secret modified: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("[%s/%s]: Secret modified", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
 }
 
 func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("Secret deleted: %s/%s", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("[%s/%s]: Secret deleted", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	syncNamespaceSecret(ctx, clientset, config, secret, syncDeletedSecret)
 }
