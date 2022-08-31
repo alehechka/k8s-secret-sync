@@ -12,7 +12,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func syncSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
+type SecretSyncFunc func(context.Context, *kubernetes.Clientset, *SyncConfig, v1.Namespace, *v1.Secret) error
+
+func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret, sync SecretSyncFunc) error {
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("Secret is excluded from sync: %s", secret.Name)
 		return constants.ErrExcludedSecret
@@ -45,26 +47,41 @@ func syncSecret(ctx context.Context, clientset *kubernetes.Clientset, config *Sy
 			continue
 		}
 
-		if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
-			log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
-
-			if !config.ForceSync && !isManagedBy(namespaceSecret) {
-				log.Debugf("Existing secret is not managed and will not be force updated: %s/%s", namespace.Name, secret.Name)
-				continue
-			}
-
-			if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
-				log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
-				continue
-			}
-
-			updateSecret(ctx, clientset, namespace, secret)
-			continue
-		}
-
-		createSecret(ctx, clientset, namespace, secret)
+		sync(ctx, clientset, config, namespace, secret)
 	}
 
+	return nil
+}
+
+func syncAddedModifiedSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
+	if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
+		log.Debugf("Secret already exists: %s/%s", namespace.Name, secret.Name)
+
+		if !config.ForceSync && !isManagedBy(namespaceSecret) {
+			log.Debugf("Existing secret is not managed and will not be force updated: %s/%s", namespace.Name, secret.Name)
+			return nil
+		}
+
+		if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
+			log.Debugf("Existing secret contains same data: %s/%s", namespace.Name, secret.Name)
+			return nil
+		}
+
+		_, err = updateSecret(ctx, clientset, namespace, secret)
+		return err
+	}
+
+	return createSecret(ctx, clientset, namespace, secret)
+}
+
+func syncDeletedSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
+	if namespaceSecret, err := getSecret(ctx, clientset, namespace.Name, secret.Name); err == nil {
+		if config.ForceSync || isManagedBy(namespaceSecret) {
+			return deleteSecret(ctx, clientset, namespace, secret)
+		}
+	}
+
+	log.Debugf("Secret not found for deletion: %s/%s", namespace.Name, secret.Name)
 	return nil
 }
 
@@ -82,12 +99,12 @@ func createSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	return err
 }
 
-func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, name string) (err error) {
-	log.Infof("Deleting secret: %s/%s", namespace, name)
+func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (err error) {
+	log.Infof("Deleting secret: %s/%s", namespace.Name, secret.Name)
 
-	err = clientset.CoreV1().Secrets(namespace).Delete(ctx, name, metav1.DeleteOptions{})
+	err = clientset.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
 	if err != nil {
-		log.Errorf("Failed to delete secret %s/%s: %s", namespace, name, err.Error())
+		log.Errorf("Failed to delete secret %s/%s: %s", namespace.Name, secret.Name, err.Error())
 	}
 
 	return
