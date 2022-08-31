@@ -5,14 +5,19 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+var startTime time.Time
+
 // SyncSecrets syncs Secrets across all selected Namespaces
 func SyncSecrets(config *SyncConfig) (err error) {
 	ctx := context.Background()
+
+	startTime = time.Now()
 
 	log.Debugf("Starting with following configuration: %#v", *config)
 

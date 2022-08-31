@@ -21,6 +21,13 @@ func namespaceEventHandler(ctx context.Context, clientset *kubernetes.Clientset,
 
 func addNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace *v1.Namespace) {
 	log.Infof("[%s]: Namespace added", namespace.Name)
+
+	if namespace.CreationTimestamp.Time.Before(startTime) {
+		log.Debugf("[%s]: Namespace will be synced on startup by Secrets watcher.", namespace.Name)
+		return
+	}
+
+	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
 }
 
 func listNamespaces(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NamespaceList, error) {
