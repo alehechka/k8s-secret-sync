@@ -27,7 +27,7 @@ func secretEventHandler(ctx context.Context, clientset *kubernetes.Clientset, co
 }
 
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Secret created", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("[%s/%s]: Secret added", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
 }
