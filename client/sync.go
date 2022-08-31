@@ -2,6 +2,9 @@ package client
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -28,12 +31,20 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+
 	for {
 		select {
 		case secretEvent := <-secretWatcher.ResultChan():
 			secretEventHandler(ctx, clientset, config, secretEvent)
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
 			namespaceEventHandler(ctx, clientset, config, namespaceEvent)
+		case s := <-sigc:
+			log.Infof("Shutting down from signal: %s", s)
+			secretWatcher.Stop()
+			namespaceWatcher.Stop()
+			return nil
 		}
 	}
 }
