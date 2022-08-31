@@ -2,12 +2,12 @@ package client
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 )
 
 // SyncSecrets syncs Secrets across all selected Namespaces
@@ -21,46 +21,30 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
-	watcher, err := clientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
+	secretWatcher, err := clientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	for event := range watcher.ResultChan() {
-		secret := event.Object.(*v1.Secret)
+	namespaceWatcher, err := clientset.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
 
-		switch event.Type {
-		case watch.Added:
-			addSecrets(ctx, clientset, config, secret)
-		case watch.Modified:
-			modifySecrets(ctx, clientset, config, secret)
-		case watch.Deleted:
-			deleteSecrets(ctx, clientset, config, secret)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+
+	for {
+		select {
+		case secretEvent := <-secretWatcher.ResultChan():
+			secretEventHandler(ctx, clientset, config, secretEvent)
+		case namespaceEvent := <-namespaceWatcher.ResultChan():
+			namespaceEventHandler(ctx, clientset, config, namespaceEvent)
+		case s := <-sigc:
+			log.Infof("Shutting down from signal: %s", s)
+			secretWatcher.Stop()
+			namespaceWatcher.Stop()
+			return nil
 		}
-
 	}
-
-	return nil
-}
-
-func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Secret added", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
-}
-
-func modifySecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	if secret.DeletionTimestamp != nil {
-		return nil
-	}
-
-	log.Infof("[%s/%s]: Secret modified", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
-}
-
-func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) {
-	log.Infof("[%s/%s]: Secret deleted", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	syncNamespaceSecret(ctx, clientset, config, secret, syncDeletedSecret)
 }
