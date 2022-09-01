@@ -27,7 +27,7 @@ func secretEventHandler(ctx context.Context, clientset *kubernetes.Clientset, co
 }
 
 func addSecrets(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Secret created", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
+	log.Infof("[%s/%s]: Secret added", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
 
 	return syncNamespaceSecret(ctx, clientset, config, secret, syncAddedModifiedSecret)
 }
@@ -51,6 +51,28 @@ func deleteSecrets(ctx context.Context, clientset *kubernetes.Clientset, config 
 type SecretSyncFunc func(context.Context, *kubernetes.Clientset, *SyncConfig, v1.Namespace, *v1.Secret) error
 
 func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, secret *v1.Secret, sync SecretSyncFunc) error {
+	if err := verifySecret(config, secret); err != nil {
+		return err
+	}
+
+	namespaces, err := listNamespaces(ctx, clientset)
+	if err != nil {
+		log.Errorf("Failed to list namespaces: %s", err.Error())
+		return err
+	}
+
+	for _, namespace := range namespaces.Items {
+		if isInvalidNamespace(config, namespace) {
+			continue
+		}
+
+		sync(ctx, clientset, config, namespace, secret)
+	}
+
+	return nil
+}
+
+func verifySecret(config *SyncConfig, secret *v1.Secret) error {
 	if config.ExcludeSecrets.IsExcluded(secret.Name) {
 		log.Debugf("[%s/%s]: Secret is excluded from sync", secret.Namespace, secret.Name)
 		return constants.ErrExcludedSecret
@@ -61,32 +83,13 @@ func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, c
 		return constants.ErrNotIncludedSecret
 	}
 
-	namespaces, err := listNamespaces(ctx, clientset)
-	if err != nil {
-		log.Errorf("Failed to list namespaces: %s", err.Error())
-		return err
-	}
-
-	for _, namespace := range namespaces.Items {
-		if namespace.Name == config.SecretsNamespace {
-			log.Debugf("[%s]: Skipping secrets namespace", namespace.Name)
-			continue
-		}
-
-		if config.ExcludeNamespaces.IsExcluded(namespace.Name) {
-			log.Debugf("[%s]: Namespace has been excluded from sync", namespace.Name)
-			continue
-		}
-
-		if !config.IncludeNamespaces.IsIncluded(namespace.Name) {
-			log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
-			continue
-		}
-
-		sync(ctx, clientset, config, namespace, secret)
-	}
-
 	return nil
+}
+
+func isInvalidSecret(config *SyncConfig, secret *v1.Secret) bool {
+	err := verifySecret(config, secret)
+
+	return err != nil
 }
 
 func syncAddedModifiedSecret(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
@@ -103,8 +106,7 @@ func syncAddedModifiedSecret(ctx context.Context, clientset *kubernetes.Clientse
 			return nil
 		}
 
-		_, err = updateSecret(ctx, clientset, namespace, secret)
-		return err
+		return updateSecret(ctx, clientset, namespace, secret)
 	}
 
 	return createSecret(ctx, clientset, namespace, secret)
@@ -146,12 +148,12 @@ func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	return
 }
 
-func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (updated *v1.Secret, err error) {
+func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (err error) {
 	log.Infof("[%s/%s]: Updating secret", namespace.Name, secret.Name)
 
 	updateSecret := prepareSecret(namespace, secret)
 
-	updated, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
+	_, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
 		log.Errorf("[%s/%s]: Failed to update secret - %s", namespace.Name, secret.Name, err.Error())
 	}
@@ -163,16 +165,30 @@ func getSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace, 
 	return clientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 }
 
-func secretsAreEqual(a, b *v1.Secret) bool {
-	aAnns := a.Annotations
-	bAnns := b.Annotations
-	delete(aAnns, constants.ManagedByAnnotationKey)
-	delete(bAnns, constants.ManagedByAnnotationKey)
+func listSecrets(ctx context.Context, clientset *kubernetes.Clientset, namespace string) (*v1.SecretList, error) {
+	return clientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+}
 
+func secretsAreEqual(a, b *v1.Secret) bool {
 	return (a.Type == b.Type &&
 		reflect.DeepEqual(a.Data, b.Data) &&
 		reflect.DeepEqual(a.StringData, b.StringData) &&
-		reflect.DeepEqual(aAnns, bAnns))
+		annotationsAreEqual(a.Annotations, b.Annotations))
+}
+
+func annotationsAreEqual(a, b map[string]string) bool {
+	if a == nil {
+		a = make(map[string]string)
+	}
+
+	if b == nil {
+		b = make(map[string]string)
+	}
+
+	delete(a, constants.ManagedByAnnotationKey)
+	delete(b, constants.ManagedByAnnotationKey)
+
+	return reflect.DeepEqual(a, b)
 }
 
 func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
