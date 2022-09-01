@@ -106,8 +106,7 @@ func syncAddedModifiedSecret(ctx context.Context, clientset *kubernetes.Clientse
 			return nil
 		}
 
-		_, err = updateSecret(ctx, clientset, namespace, secret)
-		return err
+		return updateSecret(ctx, clientset, namespace, secret)
 	}
 
 	return createSecret(ctx, clientset, namespace, secret)
@@ -149,12 +148,12 @@ func deleteSecret(ctx context.Context, clientset *kubernetes.Clientset, namespac
 	return
 }
 
-func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (updated *v1.Secret, err error) {
+func updateSecret(ctx context.Context, clientset *kubernetes.Clientset, namespace v1.Namespace, secret *v1.Secret) (err error) {
 	log.Infof("[%s/%s]: Updating secret", namespace.Name, secret.Name)
 
 	updateSecret := prepareSecret(namespace, secret)
 
-	updated, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
+	_, err = clientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
 		log.Errorf("[%s/%s]: Failed to update secret - %s", namespace.Name, secret.Name, err.Error())
 	}
@@ -171,15 +170,25 @@ func listSecrets(ctx context.Context, clientset *kubernetes.Clientset, namespace
 }
 
 func secretsAreEqual(a, b *v1.Secret) bool {
-	aAnns := a.Annotations
-	bAnns := b.Annotations
-	delete(aAnns, constants.ManagedByAnnotationKey)
-	delete(bAnns, constants.ManagedByAnnotationKey)
-
 	return (a.Type == b.Type &&
 		reflect.DeepEqual(a.Data, b.Data) &&
 		reflect.DeepEqual(a.StringData, b.StringData) &&
-		reflect.DeepEqual(aAnns, bAnns))
+		annotationsAreEqual(a.Annotations, b.Annotations))
+}
+
+func annotationsAreEqual(a, b map[string]string) bool {
+	if a == nil {
+		a = make(map[string]string)
+	}
+
+	if b == nil {
+		b = make(map[string]string)
+	}
+
+	delete(a, constants.ManagedByAnnotationKey)
+	delete(b, constants.ManagedByAnnotationKey)
+
+	return reflect.DeepEqual(a, b)
 }
 
 func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {

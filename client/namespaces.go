@@ -24,19 +24,21 @@ func addNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *
 	log.Infof("[%s]: Namespace added", namespace.Name)
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
-		log.Debugf("[%s]: Namespace will be synced on startup by Secrets watcher.", namespace.Name)
+		log.Debugf("[%s]: Namespace will be synced on startup by Secrets watcher", namespace.Name)
 		return
 	}
 
-	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
+	syncNamespace(ctx, clientset, config, namespace)
 }
 
 func syncNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace *v1.Namespace) error {
+	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
+
 	if err := verifyNamespace(config, *namespace); err != nil {
 		return err
 	}
 
-	secrets, err := listSecrets(ctx, clientset, namespace.Name)
+	secrets, err := listSecrets(ctx, clientset, config.SecretsNamespace)
 	if err != nil {
 		log.Errorf("Failed to list secrets: %s", err.Error())
 		return err
