@@ -73,17 +73,19 @@ func syncNamespaceSecret(ctx context.Context, clientset *kubernetes.Clientset, c
 }
 
 func verifySecret(config *SyncConfig, secret *v1.Secret) error {
-	if config.ExcludeSecrets.IsExcluded(secret.Name) {
+	if config.ExcludeSecrets.IsExcluded(secret.Name) || config.ExcludeRegexNamespaces.IsExcluded(secret.Name) {
 		log.Debugf("[%s/%s]: Secret is excluded from sync", secret.Namespace, secret.Name)
 		return constants.ErrExcludedSecret
 	}
 
-	if !config.IncludeSecrets.IsIncluded(secret.Name) {
-		log.Debugf("[%s/%s]: Secret is not included for sync", secret.Namespace, secret.Name)
-		return constants.ErrNotIncludedSecret
+	if (config.IncludeSecrets.IsEmpty() && config.IncludeRegexSecrets.IsEmpty()) ||
+		config.IncludeSecrets.IsIncluded(secret.Name) ||
+		config.IncludeRegexSecrets.IsIncluded(secret.Name) {
+		return nil
 	}
 
-	return nil
+	log.Debugf("[%s/%s]: Secret is not included for sync", secret.Namespace, secret.Name)
+	return constants.ErrNotIncludedSecret
 }
 
 func isInvalidSecret(config *SyncConfig, secret *v1.Secret) bool {

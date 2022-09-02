@@ -12,15 +12,19 @@ import (
 )
 
 const (
-	debugFlag             = "debug"
-	excludeSecretsFlag    = "exclude-secrets"
-	includeSecretsFlag    = "include-secrets"
-	excludeNamespacesFlag = "exclude-namespaces"
-	includeNamespacesFlag = "include-namespaces"
-	secretsNamespaceFlag  = "secrets-namespace"
-	outOfClusterFlag      = "out-of-cluster"
-	kubeconfigFlag        = "kubeconfig"
-	forceSyncFlag         = "force"
+	debugFlag                  = "debug"
+	excludeSecretsFlag         = "exclude-secrets"
+	excludeRegexSecretsFlag    = "exclude-regex-secrets"
+	includeSecretsFlag         = "include-secrets"
+	includeRegexSecretsFlag    = "include-regex-secrets"
+	excludeNamespacesFlag      = "exclude-namespaces"
+	excludeRegexNamespacesFlag = "exclude-regex-namespaces"
+	includeNamespacesFlag      = "include-namespaces"
+	includeRegexNamespacesFlag = "include-regex-namespaces"
+	secretsNamespaceFlag       = "secrets-namespace"
+	outOfClusterFlag           = "out-of-cluster"
+	kubeconfigFlag             = "kubeconfig"
+	forceSyncFlag              = "force"
 )
 
 func kubeconfig() *cli.StringFlag {
@@ -47,9 +51,19 @@ var startFlags = []cli.Flag{
 		EnvVars: []string{"EXCLUDE_SECRETS"},
 	},
 	&cli.StringSliceFlag{
+		Name:    excludeRegexSecretsFlag,
+		Usage:   "Excludes specific Secrets from syncing using regex matching. Will override `included` Secrets if specified in both. Supply as CSV in environment variables.",
+		EnvVars: []string{"EXCLUDE_REGEX_SECRETS"},
+	},
+	&cli.StringSliceFlag{
 		Name:    includeSecretsFlag,
 		Usage:   "Includes specific Secrets in syncing. Acts as a whitelist and all other Secrets will not be synced. Supply as CSV in environment variables.",
 		EnvVars: []string{"INCLUDE_SECRETS"},
+	},
+	&cli.StringSliceFlag{
+		Name:    includeRegexSecretsFlag,
+		Usage:   "Includes specific Secrets in syncing using regex matching. Acts as a whitelist and all other Secrets will not be synced. Supply as CSV in environment variables.",
+		EnvVars: []string{"INCLUDE_REGEX_SECRETS"},
 	},
 	&cli.StringSliceFlag{
 		Name:    excludeNamespacesFlag,
@@ -57,9 +71,19 @@ var startFlags = []cli.Flag{
 		EnvVars: []string{"EXCLUDE_NAMESPACES"},
 	},
 	&cli.StringSliceFlag{
+		Name:    excludeRegexNamespacesFlag,
+		Usage:   "Excludes specific Namespaces from syncing using regex matching. Will override `included` Namespaces if specified in both. Supply as CSV in environment variables.",
+		EnvVars: []string{"EXCLUDE_REGEX_NAMESPACES"},
+	},
+	&cli.StringSliceFlag{
 		Name:    includeNamespacesFlag,
 		Usage:   "Includes specific Namespaces in syncing. Acts as a whitelist and all other Namespaces will not be synced. Supply as CSV in environment variables.",
 		EnvVars: []string{"INCLUDE_NAMESPACES"},
+	},
+	&cli.StringSliceFlag{
+		Name:    includeRegexNamespacesFlag,
+		Usage:   "Includes specific Namespaces in syncing using regex matching. Acts as a whitelist and all other Namespaces will not be synced. Supply as CSV in environment variables.",
+		EnvVars: []string{"INCLUDE_REGEX_NAMESPACES"},
 	},
 	&cli.StringFlag{
 		Name:    secretsNamespaceFlag,
@@ -84,12 +108,36 @@ func startKubeSecretSync(ctx *cli.Context) (err error) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	return client.SyncSecrets(&client.SyncConfig{
-		ExcludeSecrets: ctx.StringSlice(excludeSecretsFlag),
-		IncludeSecrets: ctx.StringSlice(includeSecretsFlag),
+	excludeRegexSecrets, err := client.CompileAll(ctx.StringSlice(excludeRegexSecretsFlag))
+	if err != nil {
+		return err
+	}
 
-		ExcludeNamespaces: ctx.StringSlice(excludeNamespacesFlag),
-		IncludeNamespaces: ctx.StringSlice(includeNamespacesFlag),
+	includeRegexSecrets, err := client.CompileAll(ctx.StringSlice(includeRegexSecretsFlag))
+	if err != nil {
+		return err
+	}
+
+	excludeRegexNamespaces, err := client.CompileAll(ctx.StringSlice(excludeRegexNamespacesFlag))
+	if err != nil {
+		return err
+	}
+
+	includeRegexNamespaces, err := client.CompileAll(ctx.StringSlice(includeRegexNamespacesFlag))
+	if err != nil {
+		return err
+	}
+
+	return client.SyncSecrets(&client.SyncConfig{
+		ExcludeSecrets:      ctx.StringSlice(excludeSecretsFlag),
+		ExcludeRegexSecrets: excludeRegexSecrets,
+		IncludeSecrets:      ctx.StringSlice(includeSecretsFlag),
+		IncludeRegexSecrets: includeRegexSecrets,
+
+		ExcludeNamespaces:      ctx.StringSlice(excludeNamespacesFlag),
+		ExcludeRegexNamespaces: excludeRegexNamespaces,
+		IncludeNamespaces:      ctx.StringSlice(includeNamespacesFlag),
+		IncludeRegexNamespaces: includeRegexNamespaces,
 
 		SecretsNamespace: ctx.String(secretsNamespaceFlag),
 
