@@ -65,17 +65,20 @@ func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {
 		return constants.ErrSecretsNamespace
 	}
 
-	if config.ExcludeNamespaces.IsExcluded(namespace.Name) {
+	if config.ExcludeNamespaces.IsExcluded(namespace.Name) || config.ExcludeRegexNamespaces.IsExcluded(namespace.Name) {
 		log.Debugf("[%s]: Namespace has been excluded from sync", namespace.Name)
 		return constants.ErrExcludedNamespace
 	}
 
-	if !config.IncludeNamespaces.IsIncluded(namespace.Name) {
-		log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
-		return constants.ErrNotIncludedNamespace
+	if (config.IncludeNamespaces.IsEmpty() && config.IncludeRegexNamespaces.IsEmpty()) ||
+		config.IncludeNamespaces.IsIncluded(namespace.Name) ||
+		config.IncludeRegexNamespaces.IsIncluded(namespace.Name) {
+		return nil
 	}
 
-	return nil
+	log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
+	return constants.ErrNotIncludedNamespace
+
 }
 
 func isInvalidNamespace(config *SyncConfig, namespace v1.Namespace) bool {
