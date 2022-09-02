@@ -1,0 +1,5 @@
+kind: Namespace
+apiVersion: v1
+metadata:
+  name: {{ .Values.namespace }}
+  labels: {{- include "kube-secret-sync.labels" . | nindent 4 }}
