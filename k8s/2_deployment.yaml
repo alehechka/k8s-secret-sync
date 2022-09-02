@@ -20,6 +20,7 @@ spec:
       containers:
         - name: kube-secret-sync
           image: 'ghcr.io/alehechka/kube-secret-sync:latest'
+          imagePullPolicy: Always
           env:
             - name: DEBUG
               value: 'true'
