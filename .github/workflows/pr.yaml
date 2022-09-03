@@ -59,4 +59,4 @@ jobs:
         run: make generate
 
       - name: Check if there's diffs
-        run: git diff-index --quiet HEAD -- || exit 1;
+        run: git diff-index --quiet HEAD -- && echo "zz_generated.deepcopy.go is up-to-date" || echo "zz_generated.deepcopy.go has changes, please regenerate"; exit 1;
