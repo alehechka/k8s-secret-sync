@@ -22,7 +22,7 @@ jobs:
           version: 'v3.9.4'
 
       - name: Build Template
-        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > out.yaml
+        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
 
       - name: Build Package
         run: helm package deploy/helm/kube-secret-sync
@@ -31,4 +31,7 @@ jobs:
         run: ls -al
 
       - name: Print template
-        run: cat out.yaml
+        run: cat kube-secret-sync.yaml
+
+      - name: Add to release
+        run: gh release upload v0.4.0 kube-secret-sync.yaml kube-secret-sync-0.4.0.tgz
