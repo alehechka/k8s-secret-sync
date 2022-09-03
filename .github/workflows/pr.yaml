@@ -58,5 +58,12 @@ jobs:
       - name: Generate DeepCopy file
         run: make generate
 
-      - name: Check if there's diffs
-        run: git diff-index --quiet HEAD -- && echo "zz_generated.deepcopy.go is up-to-date" || echo "zz_generated.deepcopy.go has changes, please regenerate"; exit 1;
+      - name: Check diffs
+        uses: technote-space/get-diff-action@v6
+        with:
+          FILES: |
+            api/types/v1/zz_generated.deepcopy.go
+
+      - name: Exit if diffs exist
+        if: env.GIT_DIFF
+        run: exit 1
