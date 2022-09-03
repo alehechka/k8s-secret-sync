@@ -33,5 +33,14 @@ jobs:
       - name: Print template
         run: cat kube-secret-sync.yaml
 
+      - name: Get Chart version
+        id: chart
+        run: |
+          VERSION=$(yq ".version" deploy/helm/kube-secret-sync/Chart.yaml)
+
+          echo '::set-output name=version::$VERSION'
+
       - name: Add to release
-        run: gh release upload v0.4.0 kube-secret-sync.yaml kube-secret-sync-0.4.0.tgz
+        run: gh release upload v0.4.0 kube-secret-sync.yaml kube-secret-sync-${{ steps.chart.outputs.version }}.tgz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
