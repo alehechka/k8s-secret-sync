@@ -3,6 +3,7 @@ package cmd
 import (
 	"path/filepath"
 
+	"github.com/alehechka/kube-secret-sync/api/types"
 	"github.com/alehechka/kube-secret-sync/client"
 	log "github.com/sirupsen/logrus"
 
@@ -108,22 +109,22 @@ func startKubeSecretSync(ctx *cli.Context) (err error) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	excludeRegexSecrets, err := client.CompileAll(ctx.StringSlice(excludeRegexSecretsFlag))
+	excludeRegexSecrets, err := types.CompileAll(ctx.StringSlice(excludeRegexSecretsFlag))
 	if err != nil {
 		return err
 	}
 
-	includeRegexSecrets, err := client.CompileAll(ctx.StringSlice(includeRegexSecretsFlag))
+	includeRegexSecrets, err := types.CompileAll(ctx.StringSlice(includeRegexSecretsFlag))
 	if err != nil {
 		return err
 	}
 
-	excludeRegexNamespaces, err := client.CompileAll(ctx.StringSlice(excludeRegexNamespacesFlag))
+	excludeRegexNamespaces, err := types.CompileAll(ctx.StringSlice(excludeRegexNamespacesFlag))
 	if err != nil {
 		return err
 	}
 
-	includeRegexNamespaces, err := client.CompileAll(ctx.StringSlice(includeRegexNamespacesFlag))
+	includeRegexNamespaces, err := types.CompileAll(ctx.StringSlice(includeRegexNamespacesFlag))
 	if err != nil {
 		return err
 	}

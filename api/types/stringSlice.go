@@ -1,4 +1,4 @@
-package client
+package types
 
 // StringSlice is a slice of strings
 type StringSlice []string

@@ -1,16 +1,20 @@
 package client
 
+import (
+	"github.com/alehechka/kube-secret-sync/api/types"
+)
+
 // SyncConfig contains the configuration options for the SyncSecrets operation.
 type SyncConfig struct {
-	ExcludeSecrets      StringSlice
-	ExcludeRegexSecrets RegexSlice
-	IncludeSecrets      StringSlice
-	IncludeRegexSecrets RegexSlice
+	ExcludeSecrets      types.StringSlice
+	ExcludeRegexSecrets types.RegexSlice
+	IncludeSecrets      types.StringSlice
+	IncludeRegexSecrets types.RegexSlice
 
-	ExcludeNamespaces      StringSlice
-	ExcludeRegexNamespaces RegexSlice
-	IncludeNamespaces      StringSlice
-	IncludeRegexNamespaces RegexSlice
+	ExcludeNamespaces      types.StringSlice
+	ExcludeRegexNamespaces types.RegexSlice
+	IncludeNamespaces      types.StringSlice
+	IncludeRegexNamespaces types.RegexSlice
 
 	SecretsNamespace string
 
