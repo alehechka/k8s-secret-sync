@@ -1,1 +1,1 @@
-deploy/helm/kube-secret-sync/templates/*.yaml
+deploy/helm/kube-secret-sync/**/*.yaml
