@@ -59,11 +59,10 @@ jobs:
         run: make generate
 
       - name: Check diffs
-        uses: technote-space/get-diff-action@v6
-        with:
-          FILES: |
-            api/types/v1/zz_generated.deepcopy.go
-
-      - name: Exit if diffs exist
-        if: env.GIT_DIFF
-        run: exit 1
+        run: |
+          if [[ `git status --porcelain` ]]; then 
+            echo "Changes" 
+            exit 1
+          else 
+            echo "No Changes" 
+          fi
