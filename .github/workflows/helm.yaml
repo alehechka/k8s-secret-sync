@@ -1,0 +1,34 @@
+name: Helm Template
+
+on:
+  push:
+
+# Kill the workflow if the PR is updated with a new commit
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  helm-template:
+    name: Helm Template
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.9.4'
+
+      - name: Build Template
+        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > out.yaml
+
+      - name: Build Package
+        run: helm package
+
+      - name: Print Directory
+        run: ls -al
+
+      - name: Print template
+        run: cat out.yaml
