@@ -9,6 +9,7 @@ on:
 
 jobs:
   goreleaser:
+    name: Compile and upload binaries
     runs-on: ubuntu-latest
     if: github.ref_type == 'tag'
 
@@ -31,6 +32,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   push_docker_image:
+    name: Build and Push Docker Image
     runs-on: ubuntu-latest
 
     permissions:
@@ -64,3 +66,38 @@ jobs:
           platforms: linux/amd64
           build-args: |
             RELEASE_VERSION=${{ steps.image.outputs.tag }}
+
+  upload_helm_charts:
+    name: Upload Helm Charts
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.9.4'
+
+      - name: Build Template
+        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
+
+      - name: Build Package
+        run: helm package deploy/helm/kube-secret-sync
+
+      - name: Get Chart version
+        id: chart
+        run: |
+          VERSION=$(yq ".version" deploy/helm/kube-secret-sync/Chart.yaml)
+
+          echo "::set-output name=version::$VERSION"
+
+      - name: Add to release
+        run: gh release upload ${{ github.ref_name }} kube-secret-sync.yaml kube-secret-sync-${{ steps.chart.outputs.version }}.tgz
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
