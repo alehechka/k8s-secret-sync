@@ -8,19 +8,18 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/kubernetes"
 )
 
-func namespaceEventHandler(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, event watch.Event) {
+func namespaceEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
 	namespace := event.Object.(*v1.Namespace)
 
 	switch event.Type {
 	case watch.Added:
-		addNamespace(ctx, clientset, config, namespace)
+		addNamespace(ctx, config, namespace)
 	}
 }
 
-func addNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace *v1.Namespace) {
+func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) {
 	log.Infof("[%s]: Namespace added", namespace.Name)
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
@@ -28,17 +27,17 @@ func addNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *
 		return
 	}
 
-	syncNamespace(ctx, clientset, config, namespace)
+	syncNamespace(ctx, config, namespace)
 }
 
-func syncNamespace(ctx context.Context, clientset *kubernetes.Clientset, config *SyncConfig, namespace *v1.Namespace) error {
+func syncNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) error {
 	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
 
 	if err := verifyNamespace(config, *namespace); err != nil {
 		return err
 	}
 
-	secrets, err := listSecrets(ctx, clientset, config.SecretsNamespace)
+	secrets, err := listSecrets(ctx, config.SecretsNamespace)
 	if err != nil {
 		log.Errorf("Failed to list secrets: %s", err.Error())
 		return err
@@ -49,14 +48,14 @@ func syncNamespace(ctx context.Context, clientset *kubernetes.Clientset, config 
 			continue
 		}
 
-		syncAddedModifiedSecret(ctx, clientset, config, *namespace, &secret)
+		syncAddedModifiedSecret(ctx, config, *namespace, &secret)
 	}
 
 	return nil
 }
 
-func listNamespaces(ctx context.Context, clientset *kubernetes.Clientset) (*v1.NamespaceList, error) {
-	return clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+func listNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
+	return DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 }
 
 func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {

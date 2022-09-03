@@ -9,8 +9,8 @@ import (
 
 // SecretSyncRule is the definition for the SecretSyncRule CRD
 type SecretSyncRule struct {
-	metav1.TypeMeta
-	metav1.ObjectMeta
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	Spec SecretSyncRuleSpec
 }
@@ -19,8 +19,8 @@ type SecretSyncRule struct {
 
 // SecretSyncRuleList is the definition for the SecretSyncRule CRD list
 type SecretSyncRuleList struct {
-	metav1.TypeMeta
-	metav1.ListMeta
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
 
 	Items []SecretSyncRule
 }

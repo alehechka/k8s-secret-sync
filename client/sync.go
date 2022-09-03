@@ -8,6 +8,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -21,18 +22,27 @@ func SyncSecrets(config *SyncConfig) (err error) {
 
 	log.Debugf("Starting with following configuration: %#v", *config)
 
-	clientset, err := clientset(config)
+	if err := InitializeDefaultClientset(config); err != nil {
+		return err
+	}
+
+	if err := InitializeKubeSecretSyncClient(config); err != nil {
+		return err
+	}
+
+	secretWatcher, err := DefaultClientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	secretWatcher, err := clientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
+	namespaceWatcher, err := DefaultClientset.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
 
-	namespaceWatcher, err := clientset.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
+		log.Error("Failed to start watching secretsyncrules")
 		return err
 	}
 
@@ -42,9 +52,11 @@ func SyncSecrets(config *SyncConfig) (err error) {
 	for {
 		select {
 		case secretEvent := <-secretWatcher.ResultChan():
-			secretEventHandler(ctx, clientset, config, secretEvent)
+			secretEventHandler(ctx, config, secretEvent)
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
-			namespaceEventHandler(ctx, clientset, config, namespaceEvent)
+			namespaceEventHandler(ctx, config, namespaceEvent)
+		case secretsyncruleEvent := <-secretsyncruleWatcher.ResultChan():
+			secretSyncRuleEventHandler(ctx, config, secretsyncruleEvent)
 		case s := <-sigc:
 			log.Infof("Shutting down from signal: %s", s)
 			secretWatcher.Stop()
