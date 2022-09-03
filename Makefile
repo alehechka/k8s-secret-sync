@@ -6,3 +6,6 @@ start-regex:
 		--exclude-regex-secrets "image-[.]*" \
 		--local --debug \
 		--secrets-namespace kube-secret-sync
+
+generate:
+	controller-gen object paths=./...
