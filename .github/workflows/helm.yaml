@@ -25,7 +25,7 @@ jobs:
         run: helm template kube-secret-sync deploy/helm/kube-secret-sync > out.yaml
 
       - name: Build Package
-        run: helm package
+        run: helm package deploy/helm/kube-secret-sync
 
       - name: Print Directory
         run: ls -al
