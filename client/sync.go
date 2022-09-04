@@ -56,7 +56,7 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
 			namespaceEventHandler(ctx, config, namespaceEvent)
 		case secretsyncruleEvent := <-secretsyncruleWatcher.ResultChan():
-			secretSyncRuleEventHandler(ctx, config, secretsyncruleEvent)
+			secretSyncRuleEventHandler(ctx, secretsyncruleEvent)
 		case s := <-sigc:
 			log.Infof("Shutting down from signal: %s", s)
 			secretWatcher.Stop()
