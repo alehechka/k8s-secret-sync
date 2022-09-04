@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 
+	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
 	"github.com/alehechka/kube-secret-sync/constants"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -48,14 +49,18 @@ func syncNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namesp
 			continue
 		}
 
-		syncAddedModifiedSecret(ctx, config, *namespace, &secret)
+		syncAddedModifiedSecret(ctx, config.ForceSync, *namespace, &secret)
 	}
 
 	return nil
 }
 
-func listNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
-	return DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
+	namespaces, err = DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("Failed to list namespaces: %s", err.Error())
+	}
+	return
 }
 
 func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {
@@ -82,6 +87,28 @@ func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {
 
 func isInvalidNamespace(config *SyncConfig, namespace v1.Namespace) bool {
 	err := verifyNamespace(config, namespace)
+
+	return err != nil
+}
+
+func verifyNamespaceRules(rules typesv1.Rules, namespace v1.Namespace) error {
+	if rules.Namespaces.Exclude.IsExcluded(namespace.Name) || rules.Namespaces.ExcludeRegex.IsRegexExcluded(namespace.Name) {
+		log.Debugf("[%s]: Skipping secrets namespace", namespace.Name)
+		return constants.ErrSecretsNamespace
+	}
+
+	if (rules.Namespaces.Include.IsEmpty() && rules.Namespaces.IncludeRegex.IsEmpty()) ||
+		rules.Namespaces.Include.IsIncluded(namespace.Name) ||
+		rules.Namespaces.IncludeRegex.IsIncluded(namespace.Name) {
+		return nil
+	}
+
+	log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
+	return constants.ErrNotIncludedNamespace
+}
+
+func isInvalidNamespaceRules(rules typesv1.Rules, namespace v1.Namespace) bool {
+	err := verifyNamespaceRules(rules, namespace)
 
 	return err != nil
 }
