@@ -46,7 +46,7 @@ func deleteSecrets(ctx context.Context, config *SyncConfig, secret *v1.Secret) e
 	return syncNamespaceSecret(ctx, config, secret, syncDeletedSecret)
 }
 
-type SecretSyncFunc func(context.Context, *SyncConfig, v1.Namespace, *v1.Secret) error
+type SecretSyncFunc func(context.Context, bool, v1.Namespace, *v1.Secret) error
 
 func syncNamespaceSecret(ctx context.Context, config *SyncConfig, secret *v1.Secret, sync SecretSyncFunc) error {
 	if err := verifySecret(config, secret); err != nil {
@@ -55,7 +55,6 @@ func syncNamespaceSecret(ctx context.Context, config *SyncConfig, secret *v1.Sec
 
 	namespaces, err := listNamespaces(ctx)
 	if err != nil {
-		log.Errorf("Failed to list namespaces: %s", err.Error())
 		return err
 	}
 
@@ -64,7 +63,7 @@ func syncNamespaceSecret(ctx context.Context, config *SyncConfig, secret *v1.Sec
 			continue
 		}
 
-		sync(ctx, config, namespace, secret)
+		sync(ctx, config.ForceSync, namespace, secret)
 	}
 
 	return nil
@@ -92,11 +91,12 @@ func isInvalidSecret(config *SyncConfig, secret *v1.Secret) bool {
 	return err != nil
 }
 
-func syncAddedModifiedSecret(ctx context.Context, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
+// TODO: replace force with typesv1.Rules.Force when ready
+func syncAddedModifiedSecret(ctx context.Context, force bool, namespace v1.Namespace, secret *v1.Secret) error {
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
 		log.Debugf("[%s/%s]: Secret already exists", namespace.Name, secret.Name)
 
-		if !config.ForceSync && !isManagedBy(namespaceSecret) {
+		if !force && !isManagedBy(namespaceSecret) {
 			log.Debugf("[%s/%s]: Existing secret is not managed and will not be force updated", namespace.Name, secret.Name)
 			return nil
 		}
@@ -112,9 +112,10 @@ func syncAddedModifiedSecret(ctx context.Context, config *SyncConfig, namespace 
 	return createSecret(ctx, namespace, secret)
 }
 
-func syncDeletedSecret(ctx context.Context, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
+// TODO: replace force with typesv1.Rules.Force when ready
+func syncDeletedSecret(ctx context.Context, force bool, namespace v1.Namespace, secret *v1.Secret) error {
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
-		if config.ForceSync || isManagedBy(namespaceSecret) {
+		if force || isManagedBy(namespaceSecret) {
 			return deleteSecret(ctx, namespace, secret)
 		}
 	}
