@@ -153,13 +153,14 @@ func annotationsAreEqual(a, b map[string]string) bool {
 	if a == nil {
 		a = make(map[string]string)
 	}
+	delete(a, constants.ManagedByAnnotationKey)
+	delete(a, constants.LastAppliedConfigurationAnnotationKey)
 
 	if b == nil {
 		b = make(map[string]string)
 	}
-
-	delete(a, constants.ManagedByAnnotationKey)
 	delete(b, constants.ManagedByAnnotationKey)
+	delete(b, constants.LastAppliedConfigurationAnnotationKey)
 
 	return reflect.DeepEqual(a, b)
 }
@@ -170,6 +171,7 @@ func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
 		annotations = make(map[string]string)
 	}
 	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
+	delete(annotations, constants.LastAppliedConfigurationAnnotationKey)
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
