@@ -11,7 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func secretEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
+func secretEventHandler(ctx context.Context, event watch.Event) {
 	secret := event.Object.(*v1.Secret)
 
 	if isManagedBy(secret) {

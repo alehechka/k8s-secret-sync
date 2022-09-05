@@ -9,16 +9,16 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func namespaceEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
+func namespaceEventHandler(ctx context.Context, event watch.Event) {
 	namespace := event.Object.(*v1.Namespace)
 
 	switch event.Type {
 	case watch.Added:
-		addNamespace(ctx, config, namespace)
+		addNamespace(ctx, namespace)
 	}
 }
 
-func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) {
+func addNamespace(ctx context.Context, namespace *v1.Namespace) {
 	logger := namespaceLogger(namespace)
 	logger.Infof("added")
 
@@ -27,11 +27,11 @@ func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespa
 		return
 	}
 
-	syncNamespace(ctx, config, namespace)
+	syncNamespace(ctx, namespace)
 }
 
 // TODO - rebuild this function
-func syncNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) error {
+func syncNamespace(ctx context.Context, namespace *v1.Namespace) error {
 	namespaceLogger(namespace).Debugf("syncing new namespace")
 
 	return nil

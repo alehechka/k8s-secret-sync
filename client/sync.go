@@ -51,9 +51,9 @@ func SyncSecrets(config *SyncConfig) (err error) {
 	for {
 		select {
 		case secretEvent := <-secretWatcher.ResultChan():
-			secretEventHandler(ctx, config, secretEvent)
+			secretEventHandler(ctx, secretEvent)
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
-			namespaceEventHandler(ctx, config, namespaceEvent)
+			namespaceEventHandler(ctx, namespaceEvent)
 		case secretsyncruleEvent := <-secretsyncruleWatcher.ResultChan():
 			secretSyncRuleEventHandler(ctx, secretsyncruleEvent)
 		case s := <-sigc:
