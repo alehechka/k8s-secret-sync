@@ -18,15 +18,15 @@ func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) {
 
 	switch event.Type {
 	case watch.Added:
-		addSecretSyncRule(ctx, rule)
+		addedSecretSyncRuleHandler(ctx, rule)
 	case watch.Modified:
-		modifySecretSyncRule(ctx, rule)
+		modifiedSecretSyncRuleHandler(ctx, rule)
 	case watch.Deleted:
-		deleteSecretSyncRule(ctx, rule)
+		deletedSecretSyncRuleHandler(ctx, rule)
 	}
 }
 
-func addSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("added")
 
 	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
@@ -34,25 +34,18 @@ func addSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) error 
 		return err
 	}
 
-	namespaces, err := listNamespaces(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, namespace := range namespaces.Items {
-		if rule.ShouldSyncNamespace(&namespace) {
-			createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
-		}
+	for _, namespace := range rule.Namespaces(ctx) {
+		createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
 	}
 
 	return nil
 }
 
-func modifySecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
 	ruleLogger(rule).Infof("modified")
 }
 
-func deleteSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
 	ruleLogger(rule).Infof("deleted")
 }
 

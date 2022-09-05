@@ -31,13 +31,13 @@ func secretEventHandler(ctx context.Context, event watch.Event) {
 
 func addedSecretHandler(ctx context.Context, secret *v1.Secret) error {
 	logger := secretLogger(secret)
-	logger.Infof("added")
 
 	if secret.CreationTimestamp.Time.Before(startTime) {
 		logger.Debugf("secret will be synced on startup by SecretSyncRule watcher")
 		return nil
 	}
 
+	logger.Infof("added")
 	return syncAddedModifiedSecret(ctx, secret)
 }
 
@@ -47,7 +47,6 @@ func modifiedSecretHandler(ctx context.Context, secret *v1.Secret) error {
 	}
 
 	secretLogger(secret).Infof("modified")
-
 	return syncAddedModifiedSecret(ctx, secret)
 }
 

@@ -24,13 +24,13 @@ func namespaceEventHandler(ctx context.Context, event watch.Event) error {
 
 func addedNamespaceHandler(ctx context.Context, namespace *v1.Namespace) error {
 	logger := namespaceLogger(namespace)
-	logger.Infof("added")
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
 		logger.Debugf("namespace will be synced on startup by SecretSyncRule watcher")
 		return nil
 	}
 
+	logger.Infof("added")
 	return syncNamespace(ctx, namespace)
 }
 
