@@ -40,7 +40,7 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
-	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules().Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}

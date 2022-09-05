@@ -13,7 +13,7 @@ type SecretSyncRule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec SecretSyncRuleSpec
+	Spec SecretSyncRuleSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true

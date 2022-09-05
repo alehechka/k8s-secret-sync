@@ -6,14 +6,12 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-type KubeSecretSyncInterface interface {
-	SecretSyncRules(namespace string) SecretSyncRuleInterface
-}
-
+// KubeSecretSyncClient represents the REST client for kube-secret-sync
 type KubeSecretSyncClient struct {
-	restClient rest.Interface
+	client rest.Interface
 }
 
+// NewForConfig creates a REST Client for the kube-secret-sync CustomResourceDefinitions
 func NewForConfig(c *rest.Config) (*KubeSecretSyncClient, error) {
 	AddToScheme(scheme.Scheme)
 
@@ -28,12 +26,9 @@ func NewForConfig(c *rest.Config) (*KubeSecretSyncClient, error) {
 		return nil, err
 	}
 
-	return &KubeSecretSyncClient{restClient: client}, nil
+	return &KubeSecretSyncClient{client: client}, nil
 }
 
-func (c *KubeSecretSyncClient) SecretSyncRules(namespace string) SecretSyncRuleInterface {
-	return &secretSyncRuleClient{
-		restClient: c.restClient,
-		ns:         namespace,
-	}
+func (c *KubeSecretSyncClient) SecretSyncRules() SecretSyncRuleInterface {
+	return newSecretSyncRules(c)
 }

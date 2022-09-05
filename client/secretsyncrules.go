@@ -29,16 +29,9 @@ func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) {
 func addSecretSyncRule(ctx context.Context, ruleLogger *log.Entry, rule *typesv1.SecretSyncRule) error {
 	ruleLogger.Infof("added")
 
-	if rule.CreationTimestamp.Time.Before(startTime) {
-		ruleLogger.Debugf("will be synced on startup by Secrets watcher")
-		return nil
-	}
-
-	ruleLogger.Debugf("syncing")
-
 	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
 	if err != nil {
-		secretLogger(secret).Error("does not exist to sync")
+		secretLogger(secret).Errorf("does not exist to sync: %s", err.Error())
 		return err
 	}
 

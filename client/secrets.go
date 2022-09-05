@@ -30,7 +30,13 @@ func secretEventHandler(ctx context.Context, config *SyncConfig, event watch.Eve
 
 // TODO - rebuild this function
 func addSecrets(ctx context.Context, secret *v1.Secret) error {
-	secretLogger(secret).Infof("added")
+	logger := secretLogger(secret)
+	logger.Infof("added")
+
+	if secret.CreationTimestamp.Time.Before(startTime) {
+		logger.Debugf("secret will be synced on startup by SecretSyncRule watcher")
+		return nil
+	}
 
 	return nil
 }

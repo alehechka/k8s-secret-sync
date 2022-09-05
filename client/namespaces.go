@@ -23,7 +23,7 @@ func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespa
 	logger.Infof("added")
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
-		logger.Debugf("namespace will be synced on startup by Secrets watcher")
+		logger.Debugf("namespace will be synced on startup by SecretSyncRule watcher")
 		return
 	}
 
