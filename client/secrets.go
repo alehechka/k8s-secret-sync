@@ -153,7 +153,7 @@ func getSecret(ctx context.Context, namespace, name string) (secret *v1.Secret, 
 	secret, err = clientset.Default.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
 	if err != nil {
 		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}).
-			Errorf("does not exist to sync: %s", err.Error())
+			Errorf("failed to get secret: %s", err.Error())
 	}
 	return
 }
