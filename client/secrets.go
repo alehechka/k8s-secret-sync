@@ -134,12 +134,22 @@ func updateSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secre
 	return
 }
 
-func getSecret(ctx context.Context, namespace, name string) (*v1.Secret, error) {
-	return DefaultClientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+func getSecret(ctx context.Context, namespace, name string) (secret *v1.Secret, err error) {
+	secret, err = DefaultClientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}).
+			Errorf("does not exist to sync: %s", err.Error())
+	}
+	return
 }
 
-func listSecrets(ctx context.Context, namespace string) (*v1.SecretList, error) {
-	return DefaultClientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+func listSecrets(ctx context.Context, namespace string) (list *v1.SecretList, err error) {
+	list, err = DefaultClientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		namespaceLogger(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}).
+			Errorf("failed to list secrets: %s", err.Error())
+	}
+	return
 }
 
 func secretsAreEqual(a, b *v1.Secret) bool {

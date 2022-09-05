@@ -30,7 +30,6 @@ func addSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) error 
 
 	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
 	if err != nil {
-		secretLogger(secret).Errorf("does not exist to sync: %s", err.Error())
 		return err
 	}
 
