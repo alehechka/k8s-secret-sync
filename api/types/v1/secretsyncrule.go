@@ -23,7 +23,7 @@ type SecretSyncRuleList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
 
-	Items []SecretSyncRule
+	Items []SecretSyncRule `json:"items"`
 }
 
 // +kubebuilder:object:generate=true
