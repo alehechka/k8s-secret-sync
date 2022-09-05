@@ -48,11 +48,9 @@ func addSecretSyncRule(ctx context.Context, ruleLogger *log.Entry, rule *typesv1
 	}
 
 	for _, namespace := range namespaces.Items {
-		if isInvalidNamespaceRules(rule.Spec.Rules, namespace) {
-			continue
+		if rule.ShouldSyncNamespace(&namespace) {
+			syncAddedModifiedSecret(ctx, rule.Spec.Rules, namespace, secret)
 		}
-
-		syncAddedModifiedSecret(ctx, rule.Spec.Rules.Force, namespace, secret)
 	}
 
 	return nil

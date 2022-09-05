@@ -30,7 +30,7 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
-	secretWatcher, err := DefaultClientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
+	secretWatcher, err := DefaultClientset.CoreV1().Secrets(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,6 @@ func SyncSecrets(config *SyncConfig) (err error) {
 
 	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
-		log.Error("Failed to start watching secretsyncrules")
 		return err
 	}
 
