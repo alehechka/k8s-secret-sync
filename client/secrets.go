@@ -21,16 +21,15 @@ func secretEventHandler(ctx context.Context, event watch.Event) {
 
 	switch event.Type {
 	case watch.Added:
-		addSecrets(ctx, secret)
+		addedSecretHandler(ctx, secret)
 	case watch.Modified:
-		modifySecrets(ctx, secret)
+		modifiedSecretHandler(ctx, secret)
 	case watch.Deleted:
-		deleteSecrets(ctx, secret)
+		deletedSecretHandler(ctx, secret)
 	}
 }
 
-// TODO - rebuild this function
-func addSecrets(ctx context.Context, secret *v1.Secret) error {
+func addedSecretHandler(ctx context.Context, secret *v1.Secret) error {
 	logger := secretLogger(secret)
 	logger.Infof("added")
 
@@ -39,6 +38,20 @@ func addSecrets(ctx context.Context, secret *v1.Secret) error {
 		return nil
 	}
 
+	return syncAddedModifiedSecret(ctx, secret)
+}
+
+func modifiedSecretHandler(ctx context.Context, secret *v1.Secret) error {
+	if secret.DeletionTimestamp != nil {
+		return nil
+	}
+
+	secretLogger(secret).Infof("modified")
+
+	return syncAddedModifiedSecret(ctx, secret)
+}
+
+func syncAddedModifiedSecret(ctx context.Context, secret *v1.Secret) error {
 	rules, err := listSecretSyncRules(ctx)
 	if err != nil {
 		return err
@@ -46,33 +59,17 @@ func addSecrets(ctx context.Context, secret *v1.Secret) error {
 
 	for _, rule := range rules.Items {
 		if rule.ShouldSyncSecret(secret) {
-			// createUpdateSecret(ctx, rule.Spec.Rules)
+			for _, namespace := range rule.Namespaces(ctx) {
+				createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
+			}
 		}
 	}
 
 	return nil
 }
 
-// TODO - rebuild this function
-func modifySecrets(ctx context.Context, secret *v1.Secret) error {
-	if secret.DeletionTimestamp != nil {
-		return nil
-	}
-
-	secretLogger(secret).Infof("modified")
-
-	return nil
-}
-
-// TODO - rebuild this function
-func deleteSecrets(ctx context.Context, secret *v1.Secret) error {
-	secretLogger(secret).Infof("deleted")
-
-	return nil
-}
-
 func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
-	logger := secretLogger(secret)
+	logger := secretLogger(prepareSecret(namespace, secret))
 
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
 		logger.Debugf("already exists")
@@ -91,6 +88,13 @@ func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.
 	}
 
 	return createSecret(ctx, namespace, secret)
+}
+
+// TODO - rebuild this function
+func deletedSecretHandler(ctx context.Context, secret *v1.Secret) error {
+	secretLogger(secret).Infof("deleted")
+
+	return nil
 }
 
 func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
@@ -119,19 +123,6 @@ func createSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secre
 	return err
 }
 
-func deleteSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
-	logger := secretLogger(prepareSecret(namespace, secret))
-
-	logger.Infof("deleting secret")
-
-	err = clientset.Default.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-	if err != nil {
-		logger.Errorf("failed to delete secret - %s", err.Error())
-	}
-
-	return
-}
-
 func updateSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
 	updateSecret := prepareSecret(namespace, secret)
 
@@ -141,6 +132,19 @@ func updateSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secre
 	_, err = clientset.Default.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
 		logger.Errorf("failed to update secret - %s", err.Error())
+	}
+
+	return
+}
+
+func deleteSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
+	logger := secretLogger(prepareSecret(namespace, secret))
+
+	logger.Infof("deleting secret")
+
+	err = clientset.Default.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete secret - %s", err.Error())
 	}
 
 	return
