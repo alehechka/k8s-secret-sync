@@ -2,51 +2,32 @@ package client
 
 import (
 	"context"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
+	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
-	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var startTime time.Time
 
 // SyncSecrets syncs Secrets across all selected Namespaces
-func SyncSecrets(config *SyncConfig) (err error) {
+func SyncSecrets(config *clientset.SyncConfig) (err error) {
 	ctx := context.Background()
 
 	startTime = time.Now()
 
 	log.Debugf("Starting with following configuration: %#v", *config)
 
-	if err := InitializeDefaultClientset(config); err != nil {
+	if err = initClientsets(config); err != nil {
 		return err
 	}
 
-	if err := InitializeKubeSecretSyncClient(config); err != nil {
-		return err
-	}
-
-	secretWatcher, err := DefaultClientset.CoreV1().Secrets(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+	secretWatcher, namespaceWatcher, secretSyncRuleWatcher, err := initWatchers(ctx)
 	if err != nil {
 		return err
 	}
 
-	namespaceWatcher, err := DefaultClientset.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules().Watch(ctx, metav1.ListOptions{})
-	if err != nil {
-		return err
-	}
-
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGKILL)
+	signalChan := initSignalChannel()
 
 	for {
 		select {
@@ -54,9 +35,9 @@ func SyncSecrets(config *SyncConfig) (err error) {
 			secretEventHandler(ctx, secretEvent)
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
 			namespaceEventHandler(ctx, namespaceEvent)
-		case secretsyncruleEvent := <-secretsyncruleWatcher.ResultChan():
+		case secretsyncruleEvent := <-secretSyncRuleWatcher.ResultChan():
 			secretSyncRuleEventHandler(ctx, secretsyncruleEvent)
-		case s := <-sigc:
+		case s := <-signalChan:
 			log.Infof("Shutting down from signal: %s", s)
 			secretWatcher.Stop()
 			namespaceWatcher.Stop()

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,7 +61,7 @@ func syncSecretToNamespace(ctx context.Context, namespace *v1.Namespace, rule *t
 }
 
 func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
-	namespaces, err = DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaces, err = clientset.Default.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		log.Errorf("failed to list namespaces: %s", err.Error())
 	}
