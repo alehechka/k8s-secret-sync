@@ -15,5 +15,5 @@ func secretLogger(secret *v1.Secret) *log.Entry {
 }
 
 func namespaceLogger(namespace *v1.Namespace) *log.Entry {
-	return log.WithFields(log.Fields{"name": namespace.Namespace, "kind": "Namespace"})
+	return log.WithFields(log.Fields{"name": namespace.Name, "kind": "Namespace"})
 }
