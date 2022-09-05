@@ -4,6 +4,7 @@ import (
 	"context"
 
 	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -23,13 +24,13 @@ func namespaceEventHandler(ctx context.Context, event watch.Event) error {
 
 func addedNamespaceHandler(ctx context.Context, namespace *v1.Namespace) error {
 	logger := namespaceLogger(namespace)
-	logger.Infof("added")
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
 		logger.Debugf("namespace will be synced on startup by SecretSyncRule watcher")
 		return nil
 	}
 
+	logger.Infof("added")
 	return syncNamespace(ctx, namespace)
 }
 
@@ -53,7 +54,6 @@ func syncNamespace(ctx context.Context, namespace *v1.Namespace) error {
 func syncSecretToNamespace(ctx context.Context, namespace *v1.Namespace, rule *typesv1.SecretSyncRule) error {
 	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
 	if err != nil {
-		secretLogger(secret).Errorf("does not exist to sync: %s", err.Error())
 		return err
 	}
 
@@ -61,7 +61,7 @@ func syncSecretToNamespace(ctx context.Context, namespace *v1.Namespace, rule *t
 }
 
 func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
-	namespaces, err = DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	namespaces, err = clientset.Default.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		log.Errorf("failed to list namespaces: %s", err.Error())
 	}

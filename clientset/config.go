@@ -1,4 +1,4 @@
-package client
+package clientset
 
 // SyncConfig contains the configuration options for the SyncSecrets operation.
 type SyncConfig struct {

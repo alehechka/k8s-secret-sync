@@ -32,3 +32,17 @@ func NewForConfig(c *rest.Config) (*KubeSecretSyncClient, error) {
 func (c *KubeSecretSyncClient) SecretSyncRules() SecretSyncRuleInterface {
 	return newSecretSyncRules(c)
 }
+
+var (
+	KubeSecretSync *KubeSecretSyncClient
+)
+
+func InitializeKubeSecretSync(cluster *rest.Config) error {
+	clientset, err := NewForConfig(cluster)
+	if err != nil {
+		return err
+	}
+
+	KubeSecretSync = clientset
+	return nil
+}

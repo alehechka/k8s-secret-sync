@@ -4,6 +4,7 @@ import (
 	"context"
 
 	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/api/types/v1/clientset"
 	log "github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -17,47 +18,39 @@ func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) {
 
 	switch event.Type {
 	case watch.Added:
-		addSecretSyncRule(ctx, rule)
+		addedSecretSyncRuleHandler(ctx, rule)
 	case watch.Modified:
-		modifySecretSyncRule(ctx, rule)
+		modifiedSecretSyncRuleHandler(ctx, rule)
 	case watch.Deleted:
-		deleteSecretSyncRule(ctx, rule)
+		deletedSecretSyncRuleHandler(ctx, rule)
 	}
 }
 
-func addSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("added")
 
 	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
 	if err != nil {
-		secretLogger(secret).Errorf("does not exist to sync: %s", err.Error())
 		return err
 	}
 
-	namespaces, err := listNamespaces(ctx)
-	if err != nil {
-		return err
-	}
-
-	for _, namespace := range namespaces.Items {
-		if rule.ShouldSyncNamespace(&namespace) {
-			createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
-		}
+	for _, namespace := range rule.Namespaces(ctx) {
+		createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
 	}
 
 	return nil
 }
 
-func modifySecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
 	ruleLogger(rule).Infof("modified")
 }
 
-func deleteSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
 	ruleLogger(rule).Infof("deleted")
 }
 
 func listSecretSyncRules(ctx context.Context) (rules *typesv1.SecretSyncRuleList, err error) {
-	rules, err = KubeSecretSyncClientset.SecretSyncRules().List(ctx, metav1.ListOptions{})
+	rules, err = clientset.KubeSecretSync.SecretSyncRules().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		log.Errorf("failed to list SecretSyncRules: %s", err.Error())
 	}
