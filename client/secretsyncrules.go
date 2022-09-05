@@ -41,7 +41,7 @@ func addSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) error 
 
 	for _, namespace := range namespaces.Items {
 		if rule.ShouldSyncNamespace(&namespace) {
-			createUpdateSecret(ctx, rule.Spec.Rules, namespace, secret)
+			createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
 		}
 	}
 

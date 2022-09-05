@@ -59,7 +59,7 @@ func deleteSecrets(ctx context.Context, secret *v1.Secret) error {
 	return nil
 }
 
-func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Namespace, secret *v1.Secret) error {
+func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
 	logger := secretLogger(secret)
 
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
@@ -81,7 +81,7 @@ func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace v1.N
 	return createSecret(ctx, namespace, secret)
 }
 
-func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Namespace, secret *v1.Secret) error {
+func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
 		if rules.Force || isManagedBy(namespaceSecret) {
 			return deleteSecret(ctx, namespace, secret)
@@ -92,7 +92,7 @@ func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Na
 	return nil
 }
 
-func createSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) error {
+func createSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) error {
 	newSecret := prepareSecret(namespace, secret)
 
 	logger := secretLogger(newSecret)
@@ -107,7 +107,7 @@ func createSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret
 	return err
 }
 
-func deleteSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) (err error) {
+func deleteSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
 	logger := secretLogger(prepareSecret(namespace, secret))
 
 	logger.Infof("deleting secret")
@@ -120,7 +120,7 @@ func deleteSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret
 	return
 }
 
-func updateSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) (err error) {
+func updateSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
 	updateSecret := prepareSecret(namespace, secret)
 
 	logger := secretLogger(updateSecret)
@@ -165,7 +165,7 @@ func annotationsAreEqual(a, b map[string]string) bool {
 	return reflect.DeepEqual(a, b)
 }
 
-func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
+func prepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
 	annotations := secret.Annotations
 	if annotations == nil {
 		annotations = make(map[string]string)

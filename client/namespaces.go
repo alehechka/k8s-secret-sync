@@ -57,7 +57,7 @@ func syncSecretToNamespace(ctx context.Context, namespace *v1.Namespace, rule *t
 		return err
 	}
 
-	return createUpdateSecret(ctx, rule.Spec.Rules, *namespace, secret)
+	return createUpdateSecret(ctx, rule.Spec.Rules, namespace, secret)
 }
 
 func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
