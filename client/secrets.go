@@ -59,8 +59,7 @@ func deleteSecrets(ctx context.Context, secret *v1.Secret) error {
 	return nil
 }
 
-// TODO: replace force with typesv1.Rules.Force when ready
-func syncAddedModifiedSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Namespace, secret *v1.Secret) error {
+func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Namespace, secret *v1.Secret) error {
 	logger := secretLogger(secret)
 
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
@@ -82,7 +81,6 @@ func syncAddedModifiedSecret(ctx context.Context, rules typesv1.Rules, namespace
 	return createSecret(ctx, namespace, secret)
 }
 
-// TODO: replace force with typesv1.Rules.Force when ready
 func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace v1.Namespace, secret *v1.Secret) error {
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
 		if rules.Force || isManagedBy(namespaceSecret) {
