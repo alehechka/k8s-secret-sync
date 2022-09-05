@@ -1,7 +1,10 @@
 package v1
 
 import (
+	"context"
+
 	"github.com/alehechka/kube-secret-sync/api/types"
+	"github.com/alehechka/kube-secret-sync/clientset"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -75,6 +78,22 @@ func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
 	}
 
 	return false
+}
+
+// Namespaces returns a list of all namespaces that the given Rule allows for syncing
+func (rule *SecretSyncRule) Namespaces(ctx context.Context) (namespaces []v1.Namespace) {
+	list, err := clientset.Default.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		return
+	}
+
+	for _, namespace := range list.Items {
+		if rule.ShouldSyncNamespace(&namespace) {
+			namespaces = append(namespaces, namespace)
+		}
+	}
+
+	return
 }
 
 // ShouldSyncSecret iterates over the list to determine whether or not the given Secret should be synced
