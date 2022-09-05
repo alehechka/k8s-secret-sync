@@ -5,6 +5,7 @@ import (
 
 	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
@@ -53,4 +54,12 @@ func modifySecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
 
 func deleteSecretSyncRule(ctx context.Context, rule *typesv1.SecretSyncRule) {
 	ruleLogger(rule).Infof("deleted")
+}
+
+func listSecretSyncRules(ctx context.Context) (rules *typesv1.SecretSyncRuleList, err error) {
+	rules, err = KubeSecretSyncClientset.SecretSyncRules().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("failed to list SecretSyncRules: %s", err.Error())
+	}
+	return
 }
