@@ -65,6 +65,10 @@ func (rule *SecretSyncRule) ShouldSyncSecret(secret *v1.Secret) bool {
 func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
 	rules := rule.Spec.Rules
 
+	if rule.Spec.Namespace == namespace.Name {
+		return false
+	}
+
 	if rules.Namespaces.Exclude.IsExcluded(namespace.Name) || rules.Namespaces.ExcludeRegex.IsRegexExcluded(namespace.Name) {
 		return false
 	}
