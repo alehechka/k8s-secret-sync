@@ -30,7 +30,7 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
-	secretWatcher, err := DefaultClientset.CoreV1().Secrets(config.SecretsNamespace).Watch(ctx, metav1.ListOptions{})
+	secretWatcher, err := DefaultClientset.CoreV1().Secrets(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
 	if err != nil {
 		return err
 	}
@@ -40,9 +40,8 @@ func SyncSecrets(config *SyncConfig) (err error) {
 		return err
 	}
 
-	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+	secretsyncruleWatcher, err := KubeSecretSyncClientset.SecretSyncRules().Watch(ctx, metav1.ListOptions{})
 	if err != nil {
-		log.Error("Failed to start watching secretsyncrules")
 		return err
 	}
 
@@ -52,11 +51,11 @@ func SyncSecrets(config *SyncConfig) (err error) {
 	for {
 		select {
 		case secretEvent := <-secretWatcher.ResultChan():
-			secretEventHandler(ctx, config, secretEvent)
+			secretEventHandler(ctx, secretEvent)
 		case namespaceEvent := <-namespaceWatcher.ResultChan():
-			namespaceEventHandler(ctx, config, namespaceEvent)
+			namespaceEventHandler(ctx, namespaceEvent)
 		case secretsyncruleEvent := <-secretsyncruleWatcher.ResultChan():
-			secretSyncRuleEventHandler(ctx, config, secretsyncruleEvent)
+			secretSyncRuleEventHandler(ctx, secretsyncruleEvent)
 		case s := <-sigc:
 			log.Infof("Shutting down from signal: %s", s)
 			secretWatcher.Stop()

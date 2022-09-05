@@ -10,16 +10,8 @@ By using the example yamls out-of-the-box, a new `kube-secret-sync` namespace wi
 
 ## Configuration Options
 
-| Environment Variable       | Example                         | Type          | Default   | Description                                                                                                                    |
-| -------------------------- | ------------------------------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `SECRETS_NAMESPACE`        | `custom-secret-namespace`       | `string`      | `default` | Specifies which namespace to sync secrets from.                                                                                |
-| `EXCLUDE_SECRETS`          | `do-not-sync, super-secret`     | `string(csv)` |           | Excludes specific Secrets from syncing. Will override **included** Secrets if specified in both.                               |
-| `INCLUDE_SECRETS`          | `syncable-secret, other-secret` | `string(csv)` |           | Includes specific Secrets in syncing. Acts as a whitelist and all other Secrets will not be synced.                            |
-| `EXCLUDE_NAMESPACES`       | `kube-system, kube-public`      | `string(csv)` |           | Excludes specific Namespaces from syncing. Will override **included** Namespaces if specified in both.                         |
-| `INCLUDE_NAMESPACES`       | `default, my-namespace`         | `string(csv)` |           | Includes specific Namespaces in syncing. Acts as a whitelist and all other Namespaces will not be synced.                      |
-| `EXCLUDE_REGEX_SECRETS`    | `skip-[.]*`                     | `string(csv)` |           | Excludes specific Secrets from syncing using regex matching. Will override **included** Secrets if specified in both.          |
-| `INCLUDE_REGEX_SECRETS`    | `syncable-[.]*`                 | `string(csv)` |           | Includes specific Secrets in syncing using regex matching. Acts as a whitelist and all other Secrets will not be synced.       |
-| `EXCLUDE_REGEX_NAMESPACES` | `kube-[.]*`                     | `string(csv)` |           | Excludes specific Namespaces from syncing using regex matching. Will override **included** Namespaces if specified in both.    |
-| `INCLUDE_REGEX_NAMESPACES` | `syncable-[.]*`                 | `string(csv)` |           | Includes specific Namespaces in syncing using regex matching. Acts as a whitelist and all other Namespaces will not be synced. |
-| `DEBUG`                    | `true`                          | `boolean`     | `false`   | Log debug messages.                                                                                                            |
-| `FORCE`                    | `true`                          | `boolean`     | `false`   | Forces synchronization of all secrets, not just kube-secret-sync managed secrets.                                              |
+| Environment Variable | Example            | Type      | Default | Description                                                                       |
+| -------------------- | ------------------ | --------- | ------- | --------------------------------------------------------------------------------- |
+| `POD_NAMESPACE`      | `custom-namespace` | `string`  |         | Specifies the namespace that current application pod is running in.               |
+| `DEBUG`              | `true`             | `boolean` | `false` | Log debug messages.                                                               |
+| `FORCE`              | `true`             | `boolean` | `false` | Forces synchronization of all secrets, not just kube-secret-sync managed secrets. |

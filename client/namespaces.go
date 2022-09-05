@@ -3,85 +3,44 @@ package client
 import (
 	"context"
 
-	"github.com/alehechka/kube-secret-sync/constants"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func namespaceEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
+func namespaceEventHandler(ctx context.Context, event watch.Event) {
 	namespace := event.Object.(*v1.Namespace)
 
 	switch event.Type {
 	case watch.Added:
-		addNamespace(ctx, config, namespace)
+		addNamespace(ctx, namespace)
 	}
 }
 
-func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) {
-	log.Infof("[%s]: Namespace added", namespace.Name)
+func addNamespace(ctx context.Context, namespace *v1.Namespace) {
+	logger := namespaceLogger(namespace)
+	logger.Infof("added")
 
 	if namespace.CreationTimestamp.Time.Before(startTime) {
-		log.Debugf("[%s]: Namespace will be synced on startup by Secrets watcher", namespace.Name)
+		logger.Debugf("namespace will be synced on startup by SecretSyncRule watcher")
 		return
 	}
 
-	syncNamespace(ctx, config, namespace)
+	syncNamespace(ctx, namespace)
 }
 
-func syncNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) error {
-	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
-
-	if err := verifyNamespace(config, *namespace); err != nil {
-		return err
-	}
-
-	secrets, err := listSecrets(ctx, config.SecretsNamespace)
-	if err != nil {
-		log.Errorf("Failed to list secrets: %s", err.Error())
-		return err
-	}
-
-	for _, secret := range secrets.Items {
-		if isInvalidSecret(config, &secret) {
-			continue
-		}
-
-		syncAddedModifiedSecret(ctx, config, *namespace, &secret)
-	}
+// TODO - rebuild this function
+func syncNamespace(ctx context.Context, namespace *v1.Namespace) error {
+	namespaceLogger(namespace).Debugf("syncing new namespace")
 
 	return nil
 }
 
-func listNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
-	return DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-}
-
-func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {
-	if namespace.Name == config.SecretsNamespace {
-		log.Debugf("[%s]: Skipping secrets namespace", namespace.Name)
-		return constants.ErrSecretsNamespace
+func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
+	namespaces, err = DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("failed to list namespaces: %s", err.Error())
 	}
-
-	if config.ExcludeNamespaces.IsExcluded(namespace.Name) || config.ExcludeRegexNamespaces.IsExcluded(namespace.Name) {
-		log.Debugf("[%s]: Namespace has been excluded from sync", namespace.Name)
-		return constants.ErrExcludedNamespace
-	}
-
-	if (config.IncludeNamespaces.IsEmpty() && config.IncludeRegexNamespaces.IsEmpty()) ||
-		config.IncludeNamespaces.IsIncluded(namespace.Name) ||
-		config.IncludeRegexNamespaces.IsIncluded(namespace.Name) {
-		return nil
-	}
-
-	log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
-	return constants.ErrNotIncludedNamespace
-
-}
-
-func isInvalidNamespace(config *SyncConfig, namespace v1.Namespace) bool {
-	err := verifyNamespace(config, namespace)
-
-	return err != nil
+	return
 }

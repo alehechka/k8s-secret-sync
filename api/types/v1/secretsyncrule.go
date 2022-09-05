@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/alehechka/kube-secret-sync/api/types"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,7 +13,7 @@ type SecretSyncRule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec SecretSyncRuleSpec
+	Spec SecretSyncRuleSpec `json:"spec"`
 }
 
 // +kubebuilder:object:root=true
@@ -50,4 +51,50 @@ type NamespaceRules struct {
 	ExcludeRegex types.StringSlice `json:"excludeRegex"`
 	Include      types.StringSlice `json:"include"`
 	IncludeRegex types.StringSlice `json:"includeRegex"`
+}
+
+// ShouldSyncSecret determines whether or not the given Secret should be synced
+func (rule *SecretSyncRule) ShouldSyncSecret(secret *v1.Secret) bool {
+	return rule.Spec.Secret == secret.Name && rule.Spec.Namespace == secret.Namespace
+}
+
+// ShouldSyncNamespace determines whether or not the given Namespace should be synced
+func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
+	rules := rule.Spec.Rules
+
+	if rules.Namespaces.Exclude.IsExcluded(namespace.Name) || rules.Namespaces.ExcludeRegex.IsRegexExcluded(namespace.Name) {
+		return false
+	}
+
+	if rules.Namespaces.Include.IsEmpty() && rules.Namespaces.IncludeRegex.IsEmpty() {
+		return true
+	}
+
+	if rules.Namespaces.Include.IsIncluded(namespace.Name) || rules.Namespaces.IncludeRegex.IsRegexIncluded(namespace.Name) {
+		return true
+	}
+
+	return false
+}
+
+// ShouldSyncSecret iterates over the list to determine whether or not the given Secret should be synced
+func (list *SecretSyncRuleList) ShouldSyncSecret(secret *v1.Secret) bool {
+	for _, rule := range list.Items {
+		if rule.ShouldSyncSecret(secret) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ShouldSyncNamespace iterates over the list to determine whether or not the given Namespace should be synced
+func (list *SecretSyncRuleList) ShouldSyncNamespace(namespace *v1.Namespace) bool {
+	for _, rule := range list.Items {
+		if rule.ShouldSyncNamespace(namespace) {
+			return true
+		}
+	}
+
+	return false
 }
