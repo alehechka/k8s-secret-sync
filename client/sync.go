@@ -27,20 +27,40 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 		return err
 	}
 
+	defer secretSyncRuleWatcher.Stop()
+	defer secretWatcher.Stop()
+	defer namespaceWatcher.Stop()
+
 	signalChan := initSignalChannel()
 
 	for {
 		select {
-		case secretEvent := <-secretWatcher.ResultChan():
+		case secretEvent, ok := <-secretWatcher.ResultChan():
+			if !ok {
+				if secretWatcher, err = SecretWatcher(ctx); err != nil {
+					return err
+				}
+				continue
+			}
 			secretEventHandler(ctx, secretEvent)
-		case namespaceEvent := <-namespaceWatcher.ResultChan():
+		case namespaceEvent, ok := <-namespaceWatcher.ResultChan():
+			if !ok {
+				if namespaceWatcher, err = NamespaceWatcher(ctx); err != nil {
+					return err
+				}
+				continue
+			}
 			namespaceEventHandler(ctx, namespaceEvent)
-		case secretsyncruleEvent := <-secretSyncRuleWatcher.ResultChan():
-			secretSyncRuleEventHandler(ctx, secretsyncruleEvent)
+		case secretSyncRuleEvent, ok := <-secretSyncRuleWatcher.ResultChan():
+			if !ok {
+				if secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx); err != nil {
+					return err
+				}
+				continue
+			}
+			secretSyncRuleEventHandler(ctx, secretSyncRuleEvent)
 		case s := <-signalChan:
 			log.Infof("Shutting down from signal: %s", s)
-			secretWatcher.Stop()
-			namespaceWatcher.Stop()
 			return nil
 		}
 	}
