@@ -27,9 +27,9 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 		return err
 	}
 
-	defer secretSyncRuleWatcher.Stop()
 	defer secretWatcher.Stop()
 	defer namespaceWatcher.Stop()
+	defer secretSyncRuleWatcher.Stop()
 
 	signalChan := initSignalChannel()
 
@@ -37,25 +37,31 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 		select {
 		case secretEvent, ok := <-secretWatcher.ResultChan():
 			if !ok {
+				log.Debug("Secret watcher timed out, restarting now.")
 				if secretWatcher, err = SecretWatcher(ctx); err != nil {
 					return err
 				}
+				defer secretWatcher.Stop()
 				continue
 			}
 			secretEventHandler(ctx, secretEvent)
 		case namespaceEvent, ok := <-namespaceWatcher.ResultChan():
 			if !ok {
+				log.Debug("Namespace watcher timed out, restarting now.")
 				if namespaceWatcher, err = NamespaceWatcher(ctx); err != nil {
 					return err
 				}
+				defer namespaceWatcher.Stop()
 				continue
 			}
 			namespaceEventHandler(ctx, namespaceEvent)
 		case secretSyncRuleEvent, ok := <-secretSyncRuleWatcher.ResultChan():
 			if !ok {
+				log.Debug("SecretSyncRule watcher timed out, restarting now.")
 				if secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx); err != nil {
 					return err
 				}
+				defer secretSyncRuleWatcher.Stop()
 				continue
 			}
 			secretSyncRuleEventHandler(ctx, secretSyncRuleEvent)
