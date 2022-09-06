@@ -31,22 +31,34 @@ func initClientsets(config *clientset.SyncConfig) error {
 }
 
 func initWatchers(ctx context.Context) (secretWatcher watch.Interface, namespaceWatcher watch.Interface, secretSyncRuleWatcher watch.Interface, err error) {
-	secretWatcher, err = clientset.Default.CoreV1().Secrets(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+	secretWatcher, err = SecretWatcher(ctx)
 	if err != nil {
 		return
 	}
 
-	namespaceWatcher, err = clientset.Default.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+	namespaceWatcher, err = NamespaceWatcher(ctx)
 	if err != nil {
 		return
 	}
 
-	secretSyncRuleWatcher, err = kssclientset.KubeSecretSync.SecretSyncRules().Watch(ctx, metav1.ListOptions{})
+	secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx)
 	if err != nil {
 		return
 	}
 
 	return
+}
+
+func SecretWatcher(ctx context.Context) (watch.Interface, error) {
+	return clientset.Default.CoreV1().Secrets(v1.NamespaceAll).Watch(ctx, metav1.ListOptions{})
+}
+
+func NamespaceWatcher(ctx context.Context) (watch.Interface, error) {
+	return clientset.Default.CoreV1().Namespaces().Watch(ctx, metav1.ListOptions{})
+}
+
+func SecretSyncRuleWatcher(ctx context.Context) (watch.Interface, error) {
+	return kssclientset.KubeSecretSync.SecretSyncRules().Watch(ctx, metav1.ListOptions{})
 }
 
 func initSignalChannel() (sigc chan os.Signal) {
