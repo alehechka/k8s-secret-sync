@@ -37,6 +37,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 		select {
 		case secretEvent, ok := <-secretWatcher.ResultChan():
 			if !ok {
+				log.Debug("Secret watcher timed out, restarting now.")
 				if secretWatcher, err = SecretWatcher(ctx); err != nil {
 					return err
 				}
@@ -45,6 +46,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 			secretEventHandler(ctx, secretEvent)
 		case namespaceEvent, ok := <-namespaceWatcher.ResultChan():
 			if !ok {
+				log.Debug("Namespace watcher timed out, restarting now.")
 				if namespaceWatcher, err = NamespaceWatcher(ctx); err != nil {
 					return err
 				}
@@ -53,6 +55,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 			namespaceEventHandler(ctx, namespaceEvent)
 		case secretSyncRuleEvent, ok := <-secretSyncRuleWatcher.ResultChan():
 			if !ok {
+				log.Debug("SecretSyncRule watcher timed out, restarting now.")
 				if secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx); err != nil {
 					return err
 				}
