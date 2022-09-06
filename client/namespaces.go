@@ -12,7 +12,11 @@ import (
 )
 
 func namespaceEventHandler(ctx context.Context, event watch.Event) error {
-	namespace := event.Object.(*v1.Namespace)
+	namespace, ok := event.Object.(*v1.Namespace)
+	if !ok {
+		log.Error("failed to cast Namespace")
+		return nil
+	}
 
 	switch event.Type {
 	case watch.Added:

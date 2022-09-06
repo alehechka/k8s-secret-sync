@@ -7,26 +7,33 @@ import (
 	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
 	"github.com/alehechka/kube-secret-sync/clientset"
 	"github.com/alehechka/kube-secret-sync/constants"
+	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func secretEventHandler(ctx context.Context, event watch.Event) {
-	secret := event.Object.(*v1.Secret)
+func secretEventHandler(ctx context.Context, event watch.Event) error {
+	secret, ok := event.Object.(*v1.Secret)
+	if !ok {
+		log.Error("failed to cast Secret")
+		return nil
+	}
 
 	if isManagedBy(secret) {
-		return
+		return nil
 	}
 
 	switch event.Type {
 	case watch.Added:
-		addedSecretHandler(ctx, secret)
+		return addedSecretHandler(ctx, secret)
 	case watch.Modified:
-		modifiedSecretHandler(ctx, secret)
+		return modifiedSecretHandler(ctx, secret)
 	case watch.Deleted:
-		deletedSecretHandler(ctx, secret)
+		return deletedSecretHandler(ctx, secret)
 	}
+
+	return nil
 }
 
 func addedSecretHandler(ctx context.Context, secret *v1.Secret) error {
