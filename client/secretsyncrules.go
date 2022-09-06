@@ -10,20 +10,23 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) {
+func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) error {
 	rule, ok := event.Object.(*typesv1.SecretSyncRule)
 	if !ok {
 		log.Error("failed to cast SecretSyncRule")
+		return nil
 	}
 
 	switch event.Type {
 	case watch.Added:
-		addedSecretSyncRuleHandler(ctx, rule)
+		return addedSecretSyncRuleHandler(ctx, rule)
 	case watch.Modified:
-		modifiedSecretSyncRuleHandler(ctx, rule)
+		return modifiedSecretSyncRuleHandler(ctx, rule)
 	case watch.Deleted:
-		deletedSecretSyncRuleHandler(ctx, rule)
+		return deletedSecretSyncRuleHandler(ctx, rule)
 	}
+
+	return nil
 }
 
 func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
@@ -41,12 +44,14 @@ func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRul
 	return nil
 }
 
-func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("modified")
+	return nil
 }
 
-func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) {
+func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("deleted")
+	return nil
 }
 
 func listSecretSyncRules(ctx context.Context) (rules *typesv1.SecretSyncRuleList, err error) {
