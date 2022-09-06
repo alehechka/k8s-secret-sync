@@ -27,9 +27,9 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 		return err
 	}
 
-	defer secretSyncRuleWatcher.Stop()
 	defer secretWatcher.Stop()
 	defer namespaceWatcher.Stop()
+	defer secretSyncRuleWatcher.Stop()
 
 	signalChan := initSignalChannel()
 
@@ -41,6 +41,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 				if secretWatcher, err = SecretWatcher(ctx); err != nil {
 					return err
 				}
+				defer secretWatcher.Stop()
 				continue
 			}
 			secretEventHandler(ctx, secretEvent)
@@ -50,6 +51,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 				if namespaceWatcher, err = NamespaceWatcher(ctx); err != nil {
 					return err
 				}
+				defer namespaceWatcher.Stop()
 				continue
 			}
 			namespaceEventHandler(ctx, namespaceEvent)
@@ -59,6 +61,7 @@ func SyncSecrets(config *clientset.SyncConfig) (err error) {
 				if secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx); err != nil {
 					return err
 				}
+				defer secretSyncRuleWatcher.Stop()
 				continue
 			}
 			secretSyncRuleEventHandler(ctx, secretSyncRuleEvent)
