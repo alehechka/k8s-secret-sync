@@ -100,17 +100,33 @@ func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.
 func deletedSecretHandler(ctx context.Context, secret *v1.Secret) error {
 	secretLogger(secret).Infof("deleted")
 
+	rules, err := listSecretSyncRules(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules.Items {
+		if rule.ShouldSyncSecret(secret) {
+			for _, namespace := range rule.Namespaces(ctx) {
+				syncDeletedSecret(ctx, rule.Spec.Rules, &namespace, secret)
+			}
+		}
+	}
+
 	return nil
 }
 
 func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
+	logger := secretLogger(prepareSecret(namespace, secret))
+
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
 		if rules.Force || isManagedBy(namespaceSecret) {
 			return deleteSecret(ctx, namespace, secret)
 		}
+
+		logger.Debugf("existing secret is not managed and will not be force deleted")
 	}
 
-	secretLogger(secret).Debugf("not found for deletion")
 	return nil
 }
 
