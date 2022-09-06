@@ -51,6 +51,16 @@ func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSync
 
 func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("deleted")
+
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range rule.Namespaces(ctx) {
+		syncDeletedSecret(ctx, rule.Spec.Rules, &namespace, secret)
+	}
+
 	return nil
 }
 
