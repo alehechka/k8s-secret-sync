@@ -96,7 +96,6 @@ func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.
 	return createSecret(ctx, namespace, secret)
 }
 
-// TODO - rebuild this function
 func deletedSecretHandler(ctx context.Context, secret *v1.Secret) error {
 	secretLogger(secret).Infof("deleted")
 
