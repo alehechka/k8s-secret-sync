@@ -84,18 +84,21 @@ jobs:
         with:
           version: 'v3.9.4'
 
-      - name: Build Template
-        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
-
-      - name: Build Package
-        run: helm package deploy/helm/kube-secret-sync
-
       - name: Get Chart version
         id: chart
         run: |
-          VERSION=$(yq ".version" deploy/helm/kube-secret-sync/Chart.yaml)
+          VERSION=${{ github.ref_name }}
 
-          echo "::set-output name=version::$VERSION"
+          echo "::set-output name=version::${VERSION##*v}"
+
+      - name: Build Template
+        run: helm template kube-secret-sync deploy/helm/kube-secret-sync --set image.tag=${{ github.ref_name }} > kube-secret-sync.yaml
+
+      - name: Build Package
+        run: |
+          yq --inplace '.image.tag = "${{ github.ref_name }}"' deploy/helm/kube-secret-sync/values.yaml
+
+          helm package deploy/helm/kube-secret-sync --app-version=${{ github.ref_name }} --version=${{ steps.chart.outputs.version }}
 
       - name: Add to release
         run: gh release upload ${{ github.ref_name }} kube-secret-sync.yaml kube-secret-sync-${{ steps.chart.outputs.version }}.tgz
