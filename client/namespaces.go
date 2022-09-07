@@ -3,85 +3,71 @@ package client
 import (
 	"context"
 
-	"github.com/alehechka/kube-secret-sync/constants"
+	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func namespaceEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
-	namespace := event.Object.(*v1.Namespace)
+func namespaceEventHandler(ctx context.Context, event watch.Event) error {
+	namespace, ok := event.Object.(*v1.Namespace)
+	if !ok {
+		log.Error("failed to cast Namespace")
+		return nil
+	}
 
 	switch event.Type {
 	case watch.Added:
-		addNamespace(ctx, config, namespace)
-	}
-}
-
-func addNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) {
-	log.Infof("[%s]: Namespace added", namespace.Name)
-
-	if namespace.CreationTimestamp.Time.Before(startTime) {
-		log.Debugf("[%s]: Namespace will be synced on startup by Secrets watcher", namespace.Name)
-		return
-	}
-
-	syncNamespace(ctx, config, namespace)
-}
-
-func syncNamespace(ctx context.Context, config *SyncConfig, namespace *v1.Namespace) error {
-	log.Debugf("[%s]: Syncing new namespace", namespace.Name)
-
-	if err := verifyNamespace(config, *namespace); err != nil {
-		return err
-	}
-
-	secrets, err := listSecrets(ctx, config.SecretsNamespace)
-	if err != nil {
-		log.Errorf("Failed to list secrets: %s", err.Error())
-		return err
-	}
-
-	for _, secret := range secrets.Items {
-		if isInvalidSecret(config, &secret) {
-			continue
-		}
-
-		syncAddedModifiedSecret(ctx, config, *namespace, &secret)
+		return addedNamespaceHandler(ctx, namespace)
 	}
 
 	return nil
 }
 
-func listNamespaces(ctx context.Context) (*v1.NamespaceList, error) {
-	return DefaultClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
-}
+func addedNamespaceHandler(ctx context.Context, namespace *v1.Namespace) error {
+	logger := namespaceLogger(namespace)
 
-func verifyNamespace(config *SyncConfig, namespace v1.Namespace) error {
-	if namespace.Name == config.SecretsNamespace {
-		log.Debugf("[%s]: Skipping secrets namespace", namespace.Name)
-		return constants.ErrSecretsNamespace
-	}
-
-	if config.ExcludeNamespaces.IsExcluded(namespace.Name) || config.ExcludeRegexNamespaces.IsExcluded(namespace.Name) {
-		log.Debugf("[%s]: Namespace has been excluded from sync", namespace.Name)
-		return constants.ErrExcludedNamespace
-	}
-
-	if (config.IncludeNamespaces.IsEmpty() && config.IncludeRegexNamespaces.IsEmpty()) ||
-		config.IncludeNamespaces.IsIncluded(namespace.Name) ||
-		config.IncludeRegexNamespaces.IsIncluded(namespace.Name) {
+	if namespace.CreationTimestamp.Time.Before(startTime) {
+		logger.Debugf("namespace will be synced on startup by SecretSyncRule watcher")
 		return nil
 	}
 
-	log.Debugf("[%s]: Namespace is not included for sync", namespace.Name)
-	return constants.ErrNotIncludedNamespace
-
+	logger.Infof("added")
+	return syncNamespace(ctx, namespace)
 }
 
-func isInvalidNamespace(config *SyncConfig, namespace v1.Namespace) bool {
-	err := verifyNamespace(config, namespace)
+func syncNamespace(ctx context.Context, namespace *v1.Namespace) error {
+	namespaceLogger(namespace).Debugf("syncing new namespace")
 
-	return err != nil
+	rules, err := listSecretSyncRules(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules.Items {
+		if rule.ShouldSyncNamespace(namespace) {
+			syncSecretToNamespace(ctx, namespace, &rule)
+		}
+	}
+
+	return nil
+}
+
+func syncSecretToNamespace(ctx context.Context, namespace *v1.Namespace, rule *typesv1.SecretSyncRule) error {
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	return createUpdateSecret(ctx, rule.Spec.Rules, namespace, secret)
+}
+
+func listNamespaces(ctx context.Context) (namespaces *v1.NamespaceList, err error) {
+	namespaces, err = clientset.Default.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("failed to list namespaces: %s", err.Error())
+	}
+	return
 }

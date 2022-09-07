@@ -3,42 +3,90 @@ package client
 import (
 	"context"
 
-	v1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/api/types/v1/clientset"
 	log "github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func secretSyncRuleEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
-	rule, ok := event.Object.(*v1.SecretSyncRule)
+func secretSyncRuleEventHandler(ctx context.Context, event watch.Event) error {
+	rule, ok := event.Object.(*typesv1.SecretSyncRule)
 	if !ok {
 		log.Error("failed to cast SecretSyncRule")
+		return nil
 	}
 
 	switch event.Type {
 	case watch.Added:
-		addSecretSyncRule(ctx, config, rule)
+		return addedSecretSyncRuleHandler(ctx, rule)
 	case watch.Modified:
-		modifySecretSyncRule(ctx, config, rule)
+		return modifiedSecretSyncRuleHandler(ctx, rule)
 	case watch.Deleted:
-		deleteSecretSyncRule(ctx, config, rule)
-	}
-}
-
-func addSecretSyncRule(ctx context.Context, config *SyncConfig, rule *v1.SecretSyncRule) {
-	log.Infof("[%s/%s]: SecretSyncRule added", rule.Namespace, rule.Name)
-
-	if rule.CreationTimestamp.Time.Before(startTime) {
-		log.Debugf("[%s/%s]: SecretSyncRule will be synced on startup by Secrets watcher", rule.Namespace, rule.Name)
-		return
+		return deletedSecretSyncRuleHandler(ctx, rule)
 	}
 
-	log.Infof("[%s/%s]: SecretSyncRule syncing", rule.Namespace, rule.Name)
+	return nil
 }
 
-func modifySecretSyncRule(ctx context.Context, config *SyncConfig, rule *v1.SecretSyncRule) {
-	log.Infof("[%s/%s]: SecretSyncRule modified", rule.Namespace, rule.Name)
+func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+	ruleLogger(rule).Infof("added")
+
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range rule.Namespaces(ctx) {
+		createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
+	}
+
+	return nil
 }
 
-func deleteSecretSyncRule(ctx context.Context, config *SyncConfig, rule *v1.SecretSyncRule) {
-	log.Infof("[%s/%s]: SecretSyncRule deleted", rule.Namespace, rule.Name)
+// modifiedSecretSyncRuleHandler handles syncing secrets after a SecretSyncRule has been modified
+//
+// Due to the event watcher only providing the new state of the modified resource, it is impossible to know the previous state.
+// (The exception to this is potentially "applied" changes and parsing the last-applied-configuration annotation)
+// In coping with this limitation, a modified SecretSyncRule will simply attempt to resync the rule across all applicable namespaces.
+func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+	if rule.DeletionTimestamp != nil {
+		return nil
+	}
+
+	ruleLogger(rule).Infof("modified")
+
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range rule.Namespaces(ctx) {
+		createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
+	}
+
+	return nil
+}
+
+func deletedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+	ruleLogger(rule).Infof("deleted")
+
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range rule.Namespaces(ctx) {
+		syncDeletedSecret(ctx, rule.Spec.Rules, &namespace, secret)
+	}
+
+	return nil
+}
+
+func listSecretSyncRules(ctx context.Context) (rules *typesv1.SecretSyncRuleList, err error) {
+	rules, err = clientset.KubeSecretSync.SecretSyncRules().List(ctx, metav1.ListOptions{})
+	if err != nil {
+		log.Errorf("failed to list SecretSyncRules: %s", err.Error())
+	}
+	return
 }

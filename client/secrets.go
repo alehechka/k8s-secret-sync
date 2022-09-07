@@ -4,6 +4,8 @@ import (
 	"context"
 	"reflect"
 
+	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
+	"github.com/alehechka/kube-secret-sync/clientset"
 	"github.com/alehechka/kube-secret-sync/constants"
 	log "github.com/sirupsen/logrus"
 	v1 "k8s.io/api/core/v1"
@@ -11,98 +13,80 @@ import (
 	"k8s.io/apimachinery/pkg/watch"
 )
 
-func secretEventHandler(ctx context.Context, config *SyncConfig, event watch.Event) {
-	secret := event.Object.(*v1.Secret)
-
-	switch event.Type {
-	case watch.Added:
-		addSecrets(ctx, config, secret)
-	case watch.Modified:
-		modifySecrets(ctx, config, secret)
-	case watch.Deleted:
-		deleteSecrets(ctx, config, secret)
-	}
-}
-
-func addSecrets(ctx context.Context, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Secret added", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	return syncNamespaceSecret(ctx, config, secret, syncAddedModifiedSecret)
-}
-
-func modifySecrets(ctx context.Context, config *SyncConfig, secret *v1.Secret) error {
-	if secret.DeletionTimestamp != nil {
+func secretEventHandler(ctx context.Context, event watch.Event) error {
+	secret, ok := event.Object.(*v1.Secret)
+	if !ok {
+		log.Error("failed to cast Secret")
 		return nil
 	}
 
-	log.Infof("[%s/%s]: Secret modified", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	return syncNamespaceSecret(ctx, config, secret, syncAddedModifiedSecret)
-}
-
-func deleteSecrets(ctx context.Context, config *SyncConfig, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Secret deleted", secret.ObjectMeta.Namespace, secret.ObjectMeta.Name)
-
-	return syncNamespaceSecret(ctx, config, secret, syncDeletedSecret)
-}
-
-type SecretSyncFunc func(context.Context, *SyncConfig, v1.Namespace, *v1.Secret) error
-
-func syncNamespaceSecret(ctx context.Context, config *SyncConfig, secret *v1.Secret, sync SecretSyncFunc) error {
-	if err := verifySecret(config, secret); err != nil {
-		return err
+	if isManagedBy(secret) {
+		return nil
 	}
 
-	namespaces, err := listNamespaces(ctx)
-	if err != nil {
-		log.Errorf("Failed to list namespaces: %s", err.Error())
-		return err
-	}
-
-	for _, namespace := range namespaces.Items {
-		if isInvalidNamespace(config, namespace) {
-			continue
-		}
-
-		sync(ctx, config, namespace, secret)
+	switch event.Type {
+	case watch.Added:
+		return addedSecretHandler(ctx, secret)
+	case watch.Modified:
+		return modifiedSecretHandler(ctx, secret)
+	case watch.Deleted:
+		return deletedSecretHandler(ctx, secret)
 	}
 
 	return nil
 }
 
-func verifySecret(config *SyncConfig, secret *v1.Secret) error {
-	if config.ExcludeSecrets.IsExcluded(secret.Name) || config.ExcludeRegexNamespaces.IsExcluded(secret.Name) {
-		log.Debugf("[%s/%s]: Secret is excluded from sync", secret.Namespace, secret.Name)
-		return constants.ErrExcludedSecret
-	}
+func addedSecretHandler(ctx context.Context, secret *v1.Secret) error {
+	logger := secretLogger(secret)
 
-	if (config.IncludeSecrets.IsEmpty() && config.IncludeRegexSecrets.IsEmpty()) ||
-		config.IncludeSecrets.IsIncluded(secret.Name) ||
-		config.IncludeRegexSecrets.IsIncluded(secret.Name) {
+	if secret.CreationTimestamp.Time.Before(startTime) {
+		logger.Debugf("secret will be synced on startup by SecretSyncRule watcher")
 		return nil
 	}
 
-	log.Debugf("[%s/%s]: Secret is not included for sync", secret.Namespace, secret.Name)
-	return constants.ErrNotIncludedSecret
+	logger.Infof("added")
+	return syncAddedModifiedSecret(ctx, secret)
 }
 
-func isInvalidSecret(config *SyncConfig, secret *v1.Secret) bool {
-	err := verifySecret(config, secret)
+func modifiedSecretHandler(ctx context.Context, secret *v1.Secret) error {
+	if secret.DeletionTimestamp != nil {
+		return nil
+	}
 
-	return err != nil
+	secretLogger(secret).Infof("modified")
+	return syncAddedModifiedSecret(ctx, secret)
 }
 
-func syncAddedModifiedSecret(ctx context.Context, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
+func syncAddedModifiedSecret(ctx context.Context, secret *v1.Secret) error {
+	rules, err := listSecretSyncRules(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules.Items {
+		if rule.ShouldSyncSecret(secret) {
+			for _, namespace := range rule.Namespaces(ctx) {
+				createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
+			}
+		}
+	}
+
+	return nil
+}
+
+func createUpdateSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
+	logger := secretLogger(prepareSecret(namespace, secret))
+
 	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
-		log.Debugf("[%s/%s]: Secret already exists", namespace.Name, secret.Name)
+		logger.Debugf("already exists")
 
-		if !config.ForceSync && !isManagedBy(namespaceSecret) {
-			log.Debugf("[%s/%s]: Existing secret is not managed and will not be force updated", namespace.Name, secret.Name)
+		if !rules.Force && !isManagedBy(namespaceSecret) {
+			logger.Debugf("existing secret is not managed and will not be force updated")
 			return nil
 		}
 
 		if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
-			log.Debugf("[%s/%s]: Existing secret contains same data", namespace.Name, secret.Name)
+			logger.Debugf("existing secret contains same data")
 			return nil
 		}
 
@@ -112,61 +96,97 @@ func syncAddedModifiedSecret(ctx context.Context, config *SyncConfig, namespace 
 	return createSecret(ctx, namespace, secret)
 }
 
-func syncDeletedSecret(ctx context.Context, config *SyncConfig, namespace v1.Namespace, secret *v1.Secret) error {
-	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
-		if config.ForceSync || isManagedBy(namespaceSecret) {
-			return deleteSecret(ctx, namespace, secret)
+func deletedSecretHandler(ctx context.Context, secret *v1.Secret) error {
+	secretLogger(secret).Infof("deleted")
+
+	rules, err := listSecretSyncRules(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, rule := range rules.Items {
+		if rule.ShouldSyncSecret(secret) {
+			for _, namespace := range rule.Namespaces(ctx) {
+				syncDeletedSecret(ctx, rule.Spec.Rules, &namespace, secret)
+			}
 		}
 	}
 
-	log.Debugf("[%s/%s]: Secret not found for deletion", namespace.Name, secret.Name)
 	return nil
 }
 
-func createSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) error {
-	log.Infof("[%s/%s]: Creating secret", namespace.Name, secret.Name)
+func syncDeletedSecret(ctx context.Context, rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
+	logger := secretLogger(prepareSecret(namespace, secret))
 
+	if namespaceSecret, err := getSecret(ctx, namespace.Name, secret.Name); err == nil {
+		if rules.Force || isManagedBy(namespaceSecret) {
+			return deleteSecret(ctx, namespace, secret)
+		}
+
+		logger.Debugf("existing secret is not managed and will not be force deleted")
+	}
+
+	return nil
+}
+
+func createSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) error {
 	newSecret := prepareSecret(namespace, secret)
 
-	_, err := DefaultClientset.CoreV1().Secrets(namespace.Name).Create(ctx, newSecret, metav1.CreateOptions{})
+	logger := secretLogger(newSecret)
+	logger.Infof("creating secret")
+
+	_, err := clientset.Default.CoreV1().Secrets(namespace.Name).Create(ctx, newSecret, metav1.CreateOptions{})
 
 	if err != nil {
-		log.Errorf("[%s/%s]: Failed to create secret - %s", namespace.Name, secret.Name, err.Error())
+		logger.Errorf("failed to create secret - %s", err.Error())
 	}
 
 	return err
 }
 
-func deleteSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) (err error) {
-	log.Infof("[%s/%s]: Deleting secret", namespace.Name, secret.Name)
-
-	err = DefaultClientset.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
-	if err != nil {
-		log.Errorf("[%s/%s]: Failed to delete secret - %s", namespace.Name, secret.Name, err.Error())
-	}
-
-	return
-}
-
-func updateSecret(ctx context.Context, namespace v1.Namespace, secret *v1.Secret) (err error) {
-	log.Infof("[%s/%s]: Updating secret", namespace.Name, secret.Name)
-
+func updateSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
 	updateSecret := prepareSecret(namespace, secret)
 
-	_, err = DefaultClientset.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
+	logger := secretLogger(updateSecret)
+	logger.Infof("updating secret")
+
+	_, err = clientset.Default.CoreV1().Secrets(namespace.Name).Update(ctx, updateSecret, metav1.UpdateOptions{})
 	if err != nil {
-		log.Errorf("[%s/%s]: Failed to update secret - %s", namespace.Name, secret.Name, err.Error())
+		logger.Errorf("failed to update secret - %s", err.Error())
 	}
 
 	return
 }
 
-func getSecret(ctx context.Context, namespace, name string) (*v1.Secret, error) {
-	return DefaultClientset.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+func deleteSecret(ctx context.Context, namespace *v1.Namespace, secret *v1.Secret) (err error) {
+	logger := secretLogger(prepareSecret(namespace, secret))
+
+	logger.Infof("deleting secret")
+
+	err = clientset.Default.CoreV1().Secrets(namespace.Name).Delete(ctx, secret.Name, metav1.DeleteOptions{})
+	if err != nil {
+		logger.Errorf("failed to delete secret - %s", err.Error())
+	}
+
+	return
 }
 
-func listSecrets(ctx context.Context, namespace string) (*v1.SecretList, error) {
-	return DefaultClientset.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+func getSecret(ctx context.Context, namespace, name string) (secret *v1.Secret, err error) {
+	secret, err = clientset.Default.CoreV1().Secrets(namespace).Get(ctx, name, metav1.GetOptions{})
+	if err != nil {
+		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}).
+			Errorf("failed to get secret: %s", err.Error())
+	}
+	return
+}
+
+func listSecrets(ctx context.Context, namespace string) (list *v1.SecretList, err error) {
+	list, err = clientset.Default.CoreV1().Secrets(namespace).List(ctx, metav1.ListOptions{})
+	if err != nil {
+		namespaceLogger(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}).
+			Errorf("failed to list secrets: %s", err.Error())
+	}
+	return
 }
 
 func secretsAreEqual(a, b *v1.Secret) bool {
@@ -180,23 +200,25 @@ func annotationsAreEqual(a, b map[string]string) bool {
 	if a == nil {
 		a = make(map[string]string)
 	}
+	delete(a, constants.ManagedByAnnotationKey)
+	delete(a, constants.LastAppliedConfigurationAnnotationKey)
 
 	if b == nil {
 		b = make(map[string]string)
 	}
-
-	delete(a, constants.ManagedByAnnotationKey)
 	delete(b, constants.ManagedByAnnotationKey)
+	delete(b, constants.LastAppliedConfigurationAnnotationKey)
 
 	return reflect.DeepEqual(a, b)
 }
 
-func prepareSecret(namespace v1.Namespace, secret *v1.Secret) *v1.Secret {
+func prepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
 	annotations := secret.Annotations
 	if annotations == nil {
 		annotations = make(map[string]string)
 	}
 	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
+	delete(annotations, constants.LastAppliedConfigurationAnnotationKey)
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,

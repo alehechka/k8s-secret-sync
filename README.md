@@ -2,24 +2,71 @@
 
 A kubernetes client-go app for syncing secrets across namespaces.
 
+The application works by creating `SecretSyncRule` resources that define which secrets to sync and which namespaces to sync it to. The application will watch all `SecretSyncRule`, `Secret`, and `Namespace` resources for changes and sync the defined secrets where necessary.
+
 ## Deployment
 
-Examples deployment files can be found under [k8s](/k8s) and should be created in your cluster in the prefixed numerical order.
+Each released version will create a package helm chart and compiled yaml to deploy the entire application and its required resources. The most recent version can be deployed with the following:
 
-By using the example yamls out-of-the-box, a new `kube-secret-sync` namespace will be created and all secrets created within that namespace will be synced to all but the excluded namespaces (`kube-system`, `kube-public`, `kube-node-lease`). Additionally, the `DEBUG` flag is set to `true` which could be removed to limit verbosity of log messages.
+### `helm`
+
+```bash
+helm install kube-secret-sync https://github.com/alehechka/kube-secret-sync/releases/download/v1.0.0/kube-secret-sync-1.0.0.tgz
+```
+
+### `kubectl`
+
+```bash
+kubectl apply -f https://github.com/alehechka/kube-secret-sync/releases/download/v1.0.0/kube-secret-sync.yaml
+```
+
+## Secret Sync Rules
+
+Syncing secrets is an opt-in process per secret. This allows for fine-grained control of which secrets get synced and where to. The below example the `my-api-key` secret will be automatically synced from the `default` namespace to all but the `kube-[.]*` system defined namespaces:
+
+```yaml
+apiVersion: kube-secret-sync.io/v1
+kind: SecretSyncRule
+metadata:
+  name: my-api-key-rule
+spec:
+  secret: my-api-key
+  namespace: default
+  rules:
+    namespaces:
+      excludeRegex:
+        - 'kube-[.]*'
+```
+
+Full `SecretSyncRule` configuration options
+
+| Spec Variable                   | Example            | Type       | Description                                                                                                                                                      |
+| ------------------------------- | ------------------ | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `secret`                        | `mysecret`         | `string`   | The name of a secret to sync.                                                                                                                                    |
+| `namespace`                     | `default`          | `string`   | The name of the namespace that the secret to sync is defined in.                                                                                                 |
+| `rules.namespaces.exclude`      | `["kube-system"]`  | `[]string` | A list of namespaces to exclude from syncing (will take precedence over include rules).                                                                          |
+| `rules.namespaces.excludeRegex` | `["kube-[.]*"]`    | `[]string` | A list of regex patterns that represent namespaces to exclude from syncing (will take precedence over include rules).                                            |
+| `rules.namespaces.include`      | `["my-namespace"]` | `[]string` | A list of namespaces to include in syncing (all non-included will be excluded).                                                                                  |
+| `rules.namespaces.includeRegex` | `["my-[.]"]`       | `[]string` | A list of regex patterns that represent namespaces to include in syncing (all non-included will be excluded).                                                    |
+| `rules.force`                   | `true`             | `boolean`  | A flag to turn on forced sync. By default, the app will only sync "managed-by" secrets. With this on, any non-managed matching secret names will also be synced. |
 
 ## Configuration Options
 
-| Environment Variable       | Example                         | Type          | Default   | Description                                                                                                                    |
-| -------------------------- | ------------------------------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `SECRETS_NAMESPACE`        | `custom-secret-namespace`       | `string`      | `default` | Specifies which namespace to sync secrets from.                                                                                |
-| `EXCLUDE_SECRETS`          | `do-not-sync, super-secret`     | `string(csv)` |           | Excludes specific Secrets from syncing. Will override **included** Secrets if specified in both.                               |
-| `INCLUDE_SECRETS`          | `syncable-secret, other-secret` | `string(csv)` |           | Includes specific Secrets in syncing. Acts as a whitelist and all other Secrets will not be synced.                            |
-| `EXCLUDE_NAMESPACES`       | `kube-system, kube-public`      | `string(csv)` |           | Excludes specific Namespaces from syncing. Will override **included** Namespaces if specified in both.                         |
-| `INCLUDE_NAMESPACES`       | `default, my-namespace`         | `string(csv)` |           | Includes specific Namespaces in syncing. Acts as a whitelist and all other Namespaces will not be synced.                      |
-| `EXCLUDE_REGEX_SECRETS`    | `skip-[.]*`                     | `string(csv)` |           | Excludes specific Secrets from syncing using regex matching. Will override **included** Secrets if specified in both.          |
-| `INCLUDE_REGEX_SECRETS`    | `syncable-[.]*`                 | `string(csv)` |           | Includes specific Secrets in syncing using regex matching. Acts as a whitelist and all other Secrets will not be synced.       |
-| `EXCLUDE_REGEX_NAMESPACES` | `kube-[.]*`                     | `string(csv)` |           | Excludes specific Namespaces from syncing using regex matching. Will override **included** Namespaces if specified in both.    |
-| `INCLUDE_REGEX_NAMESPACES` | `syncable-[.]*`                 | `string(csv)` |           | Includes specific Namespaces in syncing using regex matching. Acts as a whitelist and all other Namespaces will not be synced. |
-| `DEBUG`                    | `true`                          | `boolean`     | `false`   | Log debug messages.                                                                                                            |
-| `FORCE`                    | `true`                          | `boolean`     | `false`   | Forces synchronization of all secrets, not just kube-secret-sync managed secrets.                                              |
+The application itself has a few configuration options, however these are mainly used during local development and should most likely not be changed.
+
+| Environment Variable | Example            | Type      | Default            | Description                                                         |
+| -------------------- | ------------------ | --------- | ------------------ | ------------------------------------------------------------------- |
+| `POD_NAMESPACE`      | `custom-namespace` | `string`  | `kube-secret-sync` | Specifies the namespace that current application pod is running in. |
+| `DEBUG`              | `true`             | `boolean` | `false`            | Log debug messages.                                                 |
+
+# Contribute
+
+- Create an issue or open a pull request
+
+# Author
+
+[Adam Lehechka](https://github.com/alehechka)
+
+# License
+
+[MIT](/LICENSE)
