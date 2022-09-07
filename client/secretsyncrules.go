@@ -44,8 +44,27 @@ func addedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRul
 	return nil
 }
 
+// modifiedSecretSyncRuleHandler handles syncing secrets after a SecretSyncRule has been modified
+//
+// Due to the event watcher only providing the new state of the modified resource, it is impossible to know the previous state.
+// (The exception to this is potentially "applied" changes and parsing the last-applied-configuration annotation)
+// In coping with this limitation, a modified SecretSyncRule will simply attempt to resync the rule across all applicable namespaces.
 func modifiedSecretSyncRuleHandler(ctx context.Context, rule *typesv1.SecretSyncRule) error {
+	if rule.DeletionTimestamp != nil {
+		return nil
+	}
+
 	ruleLogger(rule).Infof("modified")
+
+	secret, err := getSecret(ctx, rule.Spec.Namespace, rule.Spec.Secret)
+	if err != nil {
+		return err
+	}
+
+	for _, namespace := range rule.Namespaces(ctx) {
+		createUpdateSecret(ctx, rule.Spec.Rules, &namespace, secret)
+	}
+
 	return nil
 }
 
