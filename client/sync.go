@@ -1,71 +1,56 @@
 package client
 
 import (
-	"context"
-	"time"
-
-	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
 )
 
-var startTime time.Time
-
 // SyncSecrets syncs Secrets across all selected Namespaces
-func SyncSecrets(config *clientset.SyncConfig) (err error) {
-	ctx := context.Background()
-
-	startTime = time.Now()
-
+func SyncSecrets(config *SyncConfig) (err error) {
 	log.Debugf("Starting with following configuration: %#v", *config)
 
-	if err = initClientsets(config); err != nil {
+	client := new(Client)
+
+	if err = client.Initialize(config); err != nil {
 		return err
 	}
 
-	secretWatcher, namespaceWatcher, secretSyncRuleWatcher, err := initWatchers(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer secretWatcher.Stop()
-	defer namespaceWatcher.Stop()
-	defer secretSyncRuleWatcher.Stop()
-
-	signalChan := initSignalChannel()
+	defer client.SecretWatcher.Stop()
+	defer client.NamespaceWatcher.Stop()
+	defer client.SecretSyncRuleWatcher.Stop()
 
 	for {
 		select {
-		case secretEvent, ok := <-secretWatcher.ResultChan():
+		case secretEvent, ok := <-client.SecretWatcher.ResultChan():
 			if !ok {
 				log.Debug("Secret watcher timed out, restarting now.")
-				if secretWatcher, err = SecretWatcher(ctx); err != nil {
+				if err := client.StartSecretWatcher(); err != nil {
 					return err
 				}
-				defer secretWatcher.Stop()
+				defer client.SecretWatcher.Stop()
 				continue
 			}
-			secretEventHandler(ctx, secretEvent)
-		case namespaceEvent, ok := <-namespaceWatcher.ResultChan():
+			client.SecretEventHandler(secretEvent)
+		case namespaceEvent, ok := <-client.NamespaceWatcher.ResultChan():
 			if !ok {
 				log.Debug("Namespace watcher timed out, restarting now.")
-				if namespaceWatcher, err = NamespaceWatcher(ctx); err != nil {
+				if err := client.StartNamespaceWatcher(); err != nil {
 					return err
 				}
-				defer namespaceWatcher.Stop()
+				defer client.NamespaceWatcher.Stop()
 				continue
 			}
-			namespaceEventHandler(ctx, namespaceEvent)
-		case secretSyncRuleEvent, ok := <-secretSyncRuleWatcher.ResultChan():
+			client.NamespaceEventHandler(namespaceEvent)
+		case secretSyncRuleEvent, ok := <-client.SecretSyncRuleWatcher.ResultChan():
 			if !ok {
 				log.Debug("SecretSyncRule watcher timed out, restarting now.")
-				if secretSyncRuleWatcher, err = SecretSyncRuleWatcher(ctx); err != nil {
+				if err := client.StartSecretSyncRuleWatcher(); err != nil {
 					return err
 				}
-				defer secretSyncRuleWatcher.Stop()
+				defer client.SecretSyncRuleWatcher.Stop()
 				continue
 			}
-			secretSyncRuleEventHandler(ctx, secretSyncRuleEvent)
-		case s := <-signalChan:
+			client.SecretSyncRuleEventHandler(secretSyncRuleEvent)
+		case s := <-client.SignalChannel:
 			log.Infof("Shutting down from signal: %s", s)
 			return nil
 		}
