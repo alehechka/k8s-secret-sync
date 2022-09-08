@@ -24,7 +24,7 @@ type secretSyncRules struct {
 }
 
 // newSecretSyncRules returns a SecretSyncRules
-func newSecretSyncRules(c *KubeSecretSyncClient) *secretSyncRules {
+func newSecretSyncRules(c *KubeSecretSyncClientset) *secretSyncRules {
 	return &secretSyncRules{
 		client: c.client,
 	}

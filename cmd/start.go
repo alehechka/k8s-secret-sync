@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 
 	"github.com/alehechka/kube-secret-sync/client"
-	"github.com/alehechka/kube-secret-sync/clientset"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/urfave/cli/v2"
@@ -53,7 +52,7 @@ func startKubeSecretSync(ctx *cli.Context) (err error) {
 		log.SetLevel(log.DebugLevel)
 	}
 
-	return client.SyncSecrets(&clientset.SyncConfig{
+	return client.SyncSecrets(&client.SyncConfig{
 		PodNamespace: ctx.String(podNamespace),
 
 		OutOfCluster: ctx.Bool(outOfClusterFlag),

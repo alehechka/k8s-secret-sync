@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/alehechka/kube-secret-sync/api/types"
-	"github.com/alehechka/kube-secret-sync/clientset"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 // +kubebuilder:object:root=true
@@ -85,8 +85,8 @@ func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
 }
 
 // Namespaces returns a list of all namespaces that the given Rule allows for syncing
-func (rule *SecretSyncRule) Namespaces(ctx context.Context) (namespaces []v1.Namespace) {
-	list, err := clientset.Default.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
+func (rule *SecretSyncRule) Namespaces(ctx context.Context, clientset *kubernetes.Clientset) (namespaces []v1.Namespace) {
+	list, err := clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return
 	}

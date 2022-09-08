@@ -7,12 +7,12 @@ import (
 )
 
 // KubeSecretSyncClient represents the REST client for kube-secret-sync
-type KubeSecretSyncClient struct {
+type KubeSecretSyncClientset struct {
 	client rest.Interface
 }
 
 // NewForConfig creates a REST Client for the kube-secret-sync CustomResourceDefinitions
-func NewForConfig(c *rest.Config) (*KubeSecretSyncClient, error) {
+func NewForConfig(c *rest.Config) (*KubeSecretSyncClientset, error) {
 	AddToScheme(scheme.Scheme)
 
 	config := *c
@@ -26,23 +26,9 @@ func NewForConfig(c *rest.Config) (*KubeSecretSyncClient, error) {
 		return nil, err
 	}
 
-	return &KubeSecretSyncClient{client: client}, nil
+	return &KubeSecretSyncClientset{client: client}, nil
 }
 
-func (c *KubeSecretSyncClient) SecretSyncRules() SecretSyncRuleInterface {
+func (c *KubeSecretSyncClientset) SecretSyncRules() SecretSyncRuleInterface {
 	return newSecretSyncRules(c)
-}
-
-var (
-	KubeSecretSync *KubeSecretSyncClient
-)
-
-func InitializeKubeSecretSync(cluster *rest.Config) error {
-	clientset, err := NewForConfig(cluster)
-	if err != nil {
-		return err
-	}
-
-	KubeSecretSync = clientset
-	return nil
 }
