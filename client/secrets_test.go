@@ -96,3 +96,15 @@ func Test_CreateSecret(t *testing.T) {
 	assert.NotNil(t, secret)
 	assert.True(t, pkg.SecretsAreEqual(defaultSecret, secret))
 }
+
+func Test_IsManagedBy_True(t *testing.T) {
+	secret := *defaultSecret
+	secret.Annotations = managedByAnnotations
+	isManaged := pkg.IsManagedBy(&secret)
+	assert.True(t, isManaged)
+}
+
+func Test_IsManagedBy_False(t *testing.T) {
+	isManaged := pkg.IsManagedBy(defaultSecret)
+	assert.False(t, isManaged)
+}

@@ -17,5 +17,5 @@ var managedByAnnotations = map[string]string{constants.ManagedByAnnotationKey: c
 
 var testNamespace = &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: keyTestNamespace}}
 var defaultNamespace = &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: keyDefault}}
-var defaultSecret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: keyDefaultSecret, Namespace: keyDefault, Annotations: managedByAnnotations}}
-var testSecret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: keyTestSecret, Namespace: keyTestSecret, Annotations: managedByAnnotations}}
+var defaultSecret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: keyDefaultSecret, Namespace: keyDefault}}
+var testSecret = &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: keyTestSecret, Namespace: keyTestSecret}}
