@@ -19,7 +19,7 @@ type Client struct {
 	Context       context.Context
 	StartTime     time.Time
 
-	DefaultClientset        *kubernetes.Clientset
+	DefaultClientset        kubernetes.Interface
 	KubeSecretSyncClientset *kssclientset.KubeSecretSyncClientset
 
 	SecretWatcher         watch.Interface
