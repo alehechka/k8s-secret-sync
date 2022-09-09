@@ -85,7 +85,7 @@ func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
 }
 
 // Namespaces returns a list of all namespaces that the given Rule allows for syncing
-func (rule *SecretSyncRule) Namespaces(ctx context.Context, clientset *kubernetes.Clientset) (namespaces []v1.Namespace) {
+func (rule *SecretSyncRule) Namespaces(ctx context.Context, clientset kubernetes.Interface) (namespaces []v1.Namespace) {
 	list, err := clientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{})
 	if err != nil {
 		return

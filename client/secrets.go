@@ -18,7 +18,7 @@ func (client *Client) SecretEventHandler(event watch.Event) error {
 		return nil
 	}
 
-	if isManagedBy(secret) {
+	if IsManagedBy(secret) {
 		return nil
 	}
 
@@ -73,17 +73,17 @@ func (client *Client) SyncAddedModifiedSecret(secret *v1.Secret) error {
 }
 
 func (client *Client) CreateUpdateSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
-	logger := secretLogger(prepareSecret(namespace, secret))
+	logger := secretLogger(PrepareSecret(namespace, secret))
 
 	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
 		logger.Debugf("already exists")
 
-		if !rules.Force && !isManagedBy(namespaceSecret) {
+		if !rules.Force && !IsManagedBy(namespaceSecret) {
 			logger.Debugf("existing secret is not managed and will not be force updated")
 			return nil
 		}
 
-		if isManagedBy(namespaceSecret) && secretsAreEqual(secret, namespaceSecret) {
+		if IsManagedBy(namespaceSecret) && SecretsAreEqual(secret, namespaceSecret) {
 			logger.Debugf("existing secret contains same data")
 			return nil
 		}
@@ -114,10 +114,10 @@ func (client *Client) DeletedSecretHandler(secret *v1.Secret) error {
 }
 
 func (client *Client) SyncDeletedSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
-	logger := secretLogger(prepareSecret(namespace, secret))
+	logger := secretLogger(PrepareSecret(namespace, secret))
 
 	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
-		if rules.Force || isManagedBy(namespaceSecret) {
+		if rules.Force || IsManagedBy(namespaceSecret) {
 			return client.DeleteSecret(namespace, secret)
 		}
 
@@ -128,7 +128,7 @@ func (client *Client) SyncDeletedSecret(rules typesv1.Rules, namespace *v1.Names
 }
 
 func (client *Client) CreateSecret(namespace *v1.Namespace, secret *v1.Secret) error {
-	newSecret := prepareSecret(namespace, secret)
+	newSecret := PrepareSecret(namespace, secret)
 
 	logger := secretLogger(newSecret)
 	logger.Infof("creating secret")
@@ -143,7 +143,7 @@ func (client *Client) CreateSecret(namespace *v1.Namespace, secret *v1.Secret) e
 }
 
 func (client *Client) UpdateSecret(namespace *v1.Namespace, secret *v1.Secret) (err error) {
-	updateSecret := prepareSecret(namespace, secret)
+	updateSecret := PrepareSecret(namespace, secret)
 
 	logger := secretLogger(updateSecret)
 	logger.Infof("updating secret")
@@ -157,7 +157,7 @@ func (client *Client) UpdateSecret(namespace *v1.Namespace, secret *v1.Secret) (
 }
 
 func (client *Client) DeleteSecret(namespace *v1.Namespace, secret *v1.Secret) (err error) {
-	logger := secretLogger(prepareSecret(namespace, secret))
+	logger := secretLogger(PrepareSecret(namespace, secret))
 
 	logger.Infof("deleting secret")
 
@@ -187,36 +187,23 @@ func (client *Client) ListSecrets(namespace string) (list *v1.SecretList, err er
 	return
 }
 
-func secretsAreEqual(a, b *v1.Secret) bool {
+func SecretsAreEqual(a, b *v1.Secret) bool {
 	return (a.Type == b.Type &&
 		reflect.DeepEqual(a.Data, b.Data) &&
 		reflect.DeepEqual(a.StringData, b.StringData) &&
-		annotationsAreEqual(a.Annotations, b.Annotations))
+		AnnotationsAreEqual(a.Annotations, b.Annotations))
 }
 
-func annotationsAreEqual(a, b map[string]string) bool {
-	if a == nil {
-		a = make(map[string]string)
-	}
-	delete(a, constants.ManagedByAnnotationKey)
-	delete(a, constants.LastAppliedConfigurationAnnotationKey)
+func AnnotationsAreEqual(a, b map[string]string) bool {
+	aCopy := CopyAnnotations(a)
+	bCopy := CopyAnnotations(b)
 
-	if b == nil {
-		b = make(map[string]string)
-	}
-	delete(b, constants.ManagedByAnnotationKey)
-	delete(b, constants.LastAppliedConfigurationAnnotationKey)
-
-	return reflect.DeepEqual(a, b)
+	return reflect.DeepEqual(aCopy, bCopy)
 }
 
-func prepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
-	annotations := secret.Annotations
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
+func PrepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
+	annotations := CopyAnnotations(secret.Annotations)
 	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
-	delete(annotations, constants.LastAppliedConfigurationAnnotationKey)
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
@@ -234,7 +221,20 @@ func prepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
 
 }
 
-func isManagedBy(secret *v1.Secret) bool {
+func CopyAnnotations(m map[string]string) map[string]string {
+	copy := make(map[string]string)
+
+	for key, value := range m {
+		if key == constants.ManagedByAnnotationKey || key == constants.LastAppliedConfigurationAnnotationKey {
+			continue
+		}
+		copy[key] = value
+	}
+
+	return copy
+}
+
+func IsManagedBy(secret *v1.Secret) bool {
 	managedBy, ok := secret.Annotations[constants.ManagedByAnnotationKey]
 
 	return ok && managedBy == constants.ManagedByAnnotationValue
