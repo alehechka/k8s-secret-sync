@@ -195,28 +195,15 @@ func SecretsAreEqual(a, b *v1.Secret) bool {
 }
 
 func AnnotationsAreEqual(a, b map[string]string) bool {
-	if a == nil {
-		a = make(map[string]string)
-	}
-	delete(a, constants.ManagedByAnnotationKey)
-	delete(a, constants.LastAppliedConfigurationAnnotationKey)
+	aCopy := CopyAnnotations(a)
+	bCopy := CopyAnnotations(b)
 
-	if b == nil {
-		b = make(map[string]string)
-	}
-	delete(b, constants.ManagedByAnnotationKey)
-	delete(b, constants.LastAppliedConfigurationAnnotationKey)
-
-	return reflect.DeepEqual(a, b)
+	return reflect.DeepEqual(aCopy, bCopy)
 }
 
 func PrepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
-	annotations := secret.Annotations
-	if annotations == nil {
-		annotations = make(map[string]string)
-	}
+	annotations := CopyAnnotations(secret.Annotations)
 	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
-	delete(annotations, constants.LastAppliedConfigurationAnnotationKey)
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
@@ -232,6 +219,19 @@ func PrepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
 		Type:       secret.Type,
 	}
 
+}
+
+func CopyAnnotations(m map[string]string) map[string]string {
+	copy := make(map[string]string)
+
+	for key, value := range m {
+		if key == constants.ManagedByAnnotationKey || key == constants.LastAppliedConfigurationAnnotationKey {
+			continue
+		}
+		copy[key] = value
+	}
+
+	return copy
 }
 
 func IsManagedBy(secret *v1.Secret) bool {
