@@ -3,7 +3,6 @@ package client_test
 import (
 	"testing"
 
-	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
 	pkg "github.com/alehechka/kube-secret-sync/client"
 	"github.com/alehechka/kube-secret-sync/constants"
 	"github.com/stretchr/testify/assert"
@@ -37,7 +36,7 @@ func Test_GetSecret(t *testing.T) {
 
 	client.CreateSecret(defaultNamespace, defaultSecret)
 
-	secret, err := client.GetSecret(typesv1.Secret{Namespace: keyDefault, Name: keyDefaultSecret})
+	secret, err := client.GetSecret(keyDefault, keyDefaultSecret)
 
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
@@ -46,7 +45,7 @@ func Test_GetSecret(t *testing.T) {
 func Test_GetSecret_NoSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	secret, err := client.GetSecret(typesv1.Secret{Namespace: keyDefault, Name: keyDefaultSecret})
+	secret, err := client.GetSecret(keyDefault, keyDefaultSecret)
 
 	assert.Error(t, err)
 	assert.Nil(t, secret)
@@ -94,7 +93,7 @@ func Test_CreateSecret(t *testing.T) {
 	err := client.CreateSecret(defaultNamespace, defaultSecret)
 	assert.NoError(t, err)
 
-	secret, err := client.GetSecret(typesv1.Secret{Namespace: keyDefault, Name: keyDefaultSecret})
+	secret, err := client.GetSecret(keyDefault, keyDefaultSecret)
 	assert.NoError(t, err)
 	assert.NotNil(t, secret)
 	assert.True(t, pkg.SecretsAreEqual(defaultSecret, secret))

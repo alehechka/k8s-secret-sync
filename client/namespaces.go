@@ -53,7 +53,7 @@ func (client *Client) SyncNamespace(namespace *v1.Namespace) error {
 }
 
 func (client *Client) SyncSecretToNamespace(namespace *v1.Namespace, rule *typesv1.SecretSyncRule) error {
-	secret, err := client.GetSecret(rule.Spec.Secret)
+	secret, err := client.GetSecret(rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
 	if err != nil {
 		return err
 	}
