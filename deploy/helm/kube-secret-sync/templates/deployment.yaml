@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "kube-secret-sync.fullname" . }}
-  namespace: {{ .Values.namespace }}
+  namespace: {{ .Release.Namespace }}
   labels: {{- include "kube-secret-sync.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}

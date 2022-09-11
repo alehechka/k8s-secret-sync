@@ -10,4 +10,4 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "kube-secret-sync.serviceAccountName" . }}
-    namespace: {{ .Values.namespace }}
+    namespace: {{ .Release.Namespace }}

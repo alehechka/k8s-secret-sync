@@ -98,10 +98,14 @@ jobs:
         working_directory: deploy/helm/kube-secret-sync
 
       - name: Build Template
-        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
+        run: helm template --namespace kube-secret-sync kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
 
       - name: Build Package
-        run: helm package deploy/helm/kube-secret-sync
+        run: |
+        # package can't include namespace definition
+        rm deploy/helm/kube-secret-sync/templates/namespace.yaml
+
+        helm package deploy/helm/kube-secret-sync
 
       - name: Add to release
         run: gh release upload ${{ github.ref_name }} kube-secret-sync.yaml kube-secret-sync-${{ steps.chart.outputs.version }}.tgz
