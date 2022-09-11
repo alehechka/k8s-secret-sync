@@ -14,8 +14,6 @@ imagePullSecrets: []
 nameOverride: 'kube-secret-sync'
 fullnameOverride: 'kube-secret-sync'
 
-namespace: kube-secret-sync
-
 serviceAccount:
   # Specifies whether a service account should be created
   create: true
