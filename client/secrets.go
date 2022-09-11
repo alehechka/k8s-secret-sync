@@ -75,7 +75,7 @@ func (client *Client) SyncAddedModifiedSecret(secret *v1.Secret) error {
 func (client *Client) CreateUpdateSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
 	logger := secretLogger(PrepareSecret(namespace, secret))
 
-	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
+	if namespaceSecret, err := client.GetSecret(typesv1.Secret{Namespace: namespace.Name, Name: secret.Name}); err == nil {
 		logger.Debugf("already exists")
 
 		if !rules.Force && !IsManagedBy(namespaceSecret) {
@@ -116,7 +116,7 @@ func (client *Client) DeletedSecretHandler(secret *v1.Secret) error {
 func (client *Client) SyncDeletedSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
 	logger := secretLogger(PrepareSecret(namespace, secret))
 
-	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
+	if namespaceSecret, err := client.GetSecret(typesv1.Secret{Namespace: namespace.Name, Name: secret.Name}); err == nil {
 		if rules.Force || IsManagedBy(namespaceSecret) {
 			return client.DeleteSecret(namespace, secret)
 		}
@@ -169,10 +169,10 @@ func (client *Client) DeleteSecret(namespace *v1.Namespace, secret *v1.Secret) (
 	return
 }
 
-func (client *Client) GetSecret(namespace, name string) (secret *v1.Secret, err error) {
-	secret, err = client.DefaultClientset.CoreV1().Secrets(namespace).Get(client.Context, name, metav1.GetOptions{})
+func (client *Client) GetSecret(input typesv1.Secret) (secret *v1.Secret, err error) {
+	secret, err = client.DefaultClientset.CoreV1().Secrets(input.Namespace).Get(client.Context, input.Name, metav1.GetOptions{})
 	if err != nil {
-		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}).
+		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: input.Namespace, Name: input.Name}}).
 			Errorf("failed to get secret: %s", err.Error())
 	}
 	return

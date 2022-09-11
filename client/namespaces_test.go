@@ -14,7 +14,7 @@ func Test_SyncSecretToNamespace(t *testing.T) {
 
 	client.CreateSecret(defaultNamespace, defaultSecret)
 
-	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: keyDefaultSecret, Namespace: keyDefault}})
+	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: typesv1.Secret{Name: keyDefaultSecret, Namespace: keyDefault}}})
 
 	assert.NoError(t, err)
 }
@@ -22,7 +22,7 @@ func Test_SyncSecretToNamespace(t *testing.T) {
 func Test_SyncSecretToNamespace_NoSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: keyDefaultSecret, Namespace: keyDefault}})
+	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: typesv1.Secret{Name: keyDefaultSecret, Namespace: keyDefault}}})
 
 	assert.Error(t, err)
 }

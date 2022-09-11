@@ -33,9 +33,16 @@ type SecretSyncRuleList struct {
 
 // SecretSyncRuleSpec is the spec attribute of the SecretSyncRule CRD
 type SecretSyncRuleSpec struct {
-	Secret    string `json:"secret"`
+	Secret Secret `json:"secret"`
+	Rules  Rules  `json:"rules"`
+}
+
+// +kubebuilder:object:generate=true
+
+// Secret defines the attributes of the Secret to sync
+type Secret struct {
+	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
-	Rules     Rules  `json:"rules"`
 }
 
 // +kubebuilder:object:generate=true
@@ -58,14 +65,14 @@ type NamespaceRules struct {
 
 // ShouldSyncSecret determines whether or not the given Secret should be synced
 func (rule *SecretSyncRule) ShouldSyncSecret(secret *v1.Secret) bool {
-	return rule.Spec.Secret == secret.Name && rule.Spec.Namespace == secret.Namespace
+	return rule.Spec.Secret.Name == secret.Name && rule.Spec.Secret.Namespace == secret.Namespace
 }
 
 // ShouldSyncNamespace determines whether or not the given Namespace should be synced
 func (rule *SecretSyncRule) ShouldSyncNamespace(namespace *v1.Namespace) bool {
 	rules := rule.Spec.Rules
 
-	if rule.Spec.Namespace == namespace.Name {
+	if rule.Spec.Secret.Namespace == namespace.Name {
 		return false
 	}
 
