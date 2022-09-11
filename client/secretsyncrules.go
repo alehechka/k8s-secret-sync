@@ -29,7 +29,7 @@ func (client *Client) SecretSyncRuleEventHandler(event watch.Event) error {
 func (client *Client) AddedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("added")
 
-	secret, err := client.GetSecret(rule.Spec.Namespace, rule.Spec.Secret)
+	secret, err := client.GetSecret(rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (client *Client) ModifiedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule
 
 	ruleLogger(rule).Infof("modified")
 
-	secret, err := client.GetSecret(rule.Spec.Namespace, rule.Spec.Secret)
+	secret, err := client.GetSecret(rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (client *Client) ModifiedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule
 func (client *Client) DeletedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule) error {
 	ruleLogger(rule).Infof("deleted")
 
-	secret, err := client.GetSecret(rule.Spec.Namespace, rule.Spec.Secret)
+	secret, err := client.GetSecret(rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
 	if err != nil {
 		return err
 	}
