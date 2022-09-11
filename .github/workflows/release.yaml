@@ -102,10 +102,10 @@ jobs:
 
       - name: Build Package
         run: |
-        # package can't include namespace definition
-        rm deploy/helm/kube-secret-sync/templates/namespace.yaml
+          # package can't include namespace definition
+          rm deploy/helm/kube-secret-sync/templates/namespace.yaml
 
-        helm package deploy/helm/kube-secret-sync
+          helm package deploy/helm/kube-secret-sync
 
       - name: Add to release
         run: gh release upload ${{ github.ref_name }} kube-secret-sync.yaml kube-secret-sync-${{ steps.chart.outputs.version }}.tgz
