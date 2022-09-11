@@ -95,7 +95,7 @@ jobs:
         run: |
           yq --inplace '.image.tag = "${{ github.ref_name }}"' values.yaml
           yq --inplace '.version = "${{ steps.chart.outputs.version }}" | .appVersion = "${{ github.ref_name }}"' Chart.yaml
-        working_directory: deploy/helm/kube-secret-sync
+        working-directory: deploy/helm/kube-secret-sync
 
       - name: Build Template
         run: helm template --namespace kube-secret-sync kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
