@@ -98,7 +98,7 @@ jobs:
         working_directory: deploy/helm/kube-secret-sync
 
       - name: Build Template
-        run: helm template kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
+        run: helm template --namespace kube-secret-sync kube-secret-sync deploy/helm/kube-secret-sync > kube-secret-sync.yaml
 
       - name: Build Package
         run: helm package deploy/helm/kube-secret-sync
