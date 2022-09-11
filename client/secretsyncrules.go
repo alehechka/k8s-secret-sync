@@ -14,8 +14,6 @@ func (client *Client) SecretSyncRuleEventHandler(event watch.Event) error {
 		return nil
 	}
 
-	ruleLogger(rule).Infof("Syncing %s/%s", rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
-
 	switch event.Type {
 	case watch.Added:
 		return client.AddedSecretSyncRuleHandler(rule)
