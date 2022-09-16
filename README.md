@@ -11,13 +11,13 @@ Each released version will create a package helm chart and compiled yaml to depl
 ### `helm`
 
 ```bash
-helm install kube-secret-sync https://github.com/alehechka/kube-secret-sync/releases/download/v1.2.0/kube-secret-sync-1.2.0.tgz --namespace kube-secret-sync --create-namespace
+helm install kube-secret-sync https://github.com/alehechka/kube-secret-sync/releases/download/v1.3.0/kube-secret-sync-1.3.0.tgz --namespace kube-secret-sync --create-namespace
 ```
 
 ### `kubectl`
 
 ```bash
-kubectl apply -f https://github.com/alehechka/kube-secret-sync/releases/download/v1.2.0/kube-secret-sync.yaml
+kubectl apply -f https://github.com/alehechka/kube-secret-sync/releases/download/v1.3.0/kube-secret-sync.yaml
 ```
 
 ## Secret Sync Rules
