@@ -195,8 +195,7 @@ func SecretsAreEqual(a, b *v1.Secret) bool {
 }
 
 func PrepareSecret(rule *typesv1.SecretSyncRule, namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
-	annotations := CopyAnnotations(secret.Annotations)
-	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
+	annotations := Manage(CopyAnnotations(secret.Annotations))
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
