@@ -9,6 +9,7 @@ import (
 
 const GroupName = "kube-secret-sync.io"
 const GroupVersion = "v1"
+const SecretSyncRule = "SecretSyncRule"
 
 var SchemeGroupVersion = schema.GroupVersion{Group: GroupName, Version: GroupVersion}
 

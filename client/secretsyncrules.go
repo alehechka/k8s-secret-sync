@@ -35,7 +35,7 @@ func (client *Client) AddedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule) e
 	}
 
 	for _, namespace := range rule.Namespaces(client.Context, client.DefaultClientset) {
-		client.CreateUpdateSecret(rule.Spec.Rules, &namespace, secret)
+		client.CreateUpdateSecret(rule, &namespace, secret)
 	}
 
 	return nil
@@ -59,7 +59,7 @@ func (client *Client) ModifiedSecretSyncRuleHandler(rule *typesv1.SecretSyncRule
 	}
 
 	for _, namespace := range rule.Namespaces(client.Context, client.DefaultClientset) {
-		client.CreateUpdateSecret(rule.Spec.Rules, &namespace, secret)
+		client.CreateUpdateSecret(rule, &namespace, secret)
 	}
 
 	return nil

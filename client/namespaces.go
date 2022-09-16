@@ -45,20 +45,20 @@ func (client *Client) SyncNamespace(namespace *v1.Namespace) error {
 
 	for _, rule := range rules.Items {
 		if rule.ShouldSyncNamespace(namespace) {
-			client.SyncSecretToNamespace(namespace, &rule)
+			client.SyncSecretToNamespace(&rule, namespace)
 		}
 	}
 
 	return nil
 }
 
-func (client *Client) SyncSecretToNamespace(namespace *v1.Namespace, rule *typesv1.SecretSyncRule) error {
+func (client *Client) SyncSecretToNamespace(rule *typesv1.SecretSyncRule, namespace *v1.Namespace) error {
 	secret, err := client.GetSecret(rule.Spec.Secret.Namespace, rule.Spec.Secret.Name)
 	if err != nil {
 		return err
 	}
 
-	return client.CreateUpdateSecret(rule.Spec.Rules, namespace, secret)
+	return client.CreateUpdateSecret(rule, namespace, secret)
 }
 
 func (client *Client) ListNamespaces() (namespaces *v1.NamespaceList, err error) {

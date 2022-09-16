@@ -3,8 +3,6 @@ package client_test
 import (
 	"testing"
 
-	typesv1 "github.com/alehechka/kube-secret-sync/api/types/v1"
-
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -12,9 +10,9 @@ import (
 func Test_SyncSecretToNamespace(t *testing.T) {
 	client := InitializeTestClientset()
 
-	client.CreateSecret(defaultNamespace, defaultSecret)
+	client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
-	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: typesv1.Secret{Name: keyDefaultSecret, Namespace: keyDefault}}})
+	err := client.SyncSecretToNamespace(testSecretSyncRule, testNamespace)
 
 	assert.NoError(t, err)
 }
@@ -22,7 +20,7 @@ func Test_SyncSecretToNamespace(t *testing.T) {
 func Test_SyncSecretToNamespace_NoSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	err := client.SyncSecretToNamespace(testNamespace, &typesv1.SecretSyncRule{Spec: typesv1.SecretSyncRuleSpec{Secret: typesv1.Secret{Name: keyDefaultSecret, Namespace: keyDefault}}})
+	err := client.SyncSecretToNamespace(testSecretSyncRule, testNamespace)
 
 	assert.Error(t, err)
 }
