@@ -64,7 +64,7 @@ func (client *Client) SyncAddedModifiedSecret(secret *v1.Secret) error {
 	for _, rule := range rules.Items {
 		if rule.ShouldSyncSecret(secret) {
 			for _, namespace := range rule.Namespaces(client.Context, client.DefaultClientset) {
-				client.CreateUpdateSecret(rule.Spec.Rules, &namespace, secret)
+				client.CreateUpdateSecret(&rule, &namespace, secret)
 			}
 		}
 	}
@@ -72,13 +72,13 @@ func (client *Client) SyncAddedModifiedSecret(secret *v1.Secret) error {
 	return nil
 }
 
-func (client *Client) CreateUpdateSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
-	logger := secretLogger(PrepareSecret(namespace, secret))
+func (client *Client) CreateUpdateSecret(rule *typesv1.SecretSyncRule, namespace *v1.Namespace, secret *v1.Secret) error {
+	logger := secretLogger(secret, namespace)
 
 	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
 		logger.Debugf("already exists")
 
-		if !rules.Force && !IsManagedBy(namespaceSecret) {
+		if !rule.Spec.Rules.Force && !IsManagedBy(namespaceSecret) {
 			logger.Debugf("existing secret is not managed and will not be force updated")
 			return nil
 		}
@@ -88,10 +88,10 @@ func (client *Client) CreateUpdateSecret(rules typesv1.Rules, namespace *v1.Name
 			return nil
 		}
 
-		return client.UpdateSecret(namespace, secret)
+		return client.UpdateSecret(rule, namespace, secret)
 	}
 
-	return client.CreateSecret(namespace, secret)
+	return client.CreateSecret(rule, namespace, secret)
 }
 
 func (client *Client) DeletedSecretHandler(secret *v1.Secret) error {
@@ -114,7 +114,7 @@ func (client *Client) DeletedSecretHandler(secret *v1.Secret) error {
 }
 
 func (client *Client) SyncDeletedSecret(rules typesv1.Rules, namespace *v1.Namespace, secret *v1.Secret) error {
-	logger := secretLogger(PrepareSecret(namespace, secret))
+	logger := secretLogger(secret, namespace)
 
 	if namespaceSecret, err := client.GetSecret(namespace.Name, secret.Name); err == nil {
 		if rules.Force || IsManagedBy(namespaceSecret) {
@@ -127,8 +127,8 @@ func (client *Client) SyncDeletedSecret(rules typesv1.Rules, namespace *v1.Names
 	return nil
 }
 
-func (client *Client) CreateSecret(namespace *v1.Namespace, secret *v1.Secret) error {
-	newSecret := PrepareSecret(namespace, secret)
+func (client *Client) CreateSecret(rule *typesv1.SecretSyncRule, namespace *v1.Namespace, secret *v1.Secret) error {
+	newSecret := PrepareSecret(rule, namespace, secret)
 
 	logger := secretLogger(newSecret)
 	logger.Infof("creating secret")
@@ -142,8 +142,8 @@ func (client *Client) CreateSecret(namespace *v1.Namespace, secret *v1.Secret) e
 	return err
 }
 
-func (client *Client) UpdateSecret(namespace *v1.Namespace, secret *v1.Secret) (err error) {
-	updateSecret := PrepareSecret(namespace, secret)
+func (client *Client) UpdateSecret(rule *typesv1.SecretSyncRule, namespace *v1.Namespace, secret *v1.Secret) (err error) {
+	updateSecret := PrepareSecret(rule, namespace, secret)
 
 	logger := secretLogger(updateSecret)
 	logger.Infof("updating secret")
@@ -157,7 +157,7 @@ func (client *Client) UpdateSecret(namespace *v1.Namespace, secret *v1.Secret) (
 }
 
 func (client *Client) DeleteSecret(namespace *v1.Namespace, secret *v1.Secret) (err error) {
-	logger := secretLogger(PrepareSecret(namespace, secret))
+	logger := secretLogger(secret, namespace)
 
 	logger.Infof("deleting secret")
 
@@ -172,7 +172,7 @@ func (client *Client) DeleteSecret(namespace *v1.Namespace, secret *v1.Secret) (
 func (client *Client) GetSecret(namespace, name string) (secret *v1.Secret, err error) {
 	secret, err = client.DefaultClientset.CoreV1().Secrets(namespace).Get(client.Context, name, metav1.GetOptions{})
 	if err != nil {
-		secretLogger(&v1.Secret{ObjectMeta: metav1.ObjectMeta{Namespace: namespace, Name: name}}).
+		secretNameLogger(namespace, name).
 			Errorf("failed to get secret: %s", err.Error())
 	}
 	return
@@ -181,7 +181,7 @@ func (client *Client) GetSecret(namespace, name string) (secret *v1.Secret, err 
 func (client *Client) ListSecrets(namespace string) (list *v1.SecretList, err error) {
 	list, err = client.DefaultClientset.CoreV1().Secrets(namespace).List(client.Context, metav1.ListOptions{})
 	if err != nil {
-		namespaceLogger(&v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}).
+		namespaceNameLogger(namespace).
 			Errorf("failed to list secrets: %s", err.Error())
 	}
 	return
@@ -194,24 +194,17 @@ func SecretsAreEqual(a, b *v1.Secret) bool {
 		AnnotationsAreEqual(a.Annotations, b.Annotations))
 }
 
-func AnnotationsAreEqual(a, b map[string]string) bool {
-	aCopy := CopyAnnotations(a)
-	bCopy := CopyAnnotations(b)
-
-	return reflect.DeepEqual(aCopy, bCopy)
-}
-
-func PrepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
-	annotations := CopyAnnotations(secret.Annotations)
-	annotations[constants.ManagedByAnnotationKey] = constants.ManagedByAnnotationValue
+func PrepareSecret(rule *typesv1.SecretSyncRule, namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
+	annotations := Manage(CopyAnnotations(secret.Annotations))
 
 	return &v1.Secret{
 		TypeMeta: secret.TypeMeta,
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        secret.Name,
-			Namespace:   namespace.Name,
-			Labels:      secret.Labels,
-			Annotations: annotations,
+			Name:            secret.Name,
+			Namespace:       namespace.Name,
+			Labels:          secret.Labels,
+			Annotations:     annotations,
+			OwnerReferences: []metav1.OwnerReference{OwnerReference(rule)},
 		},
 		Immutable:  secret.Immutable,
 		Data:       secret.Data,
@@ -219,19 +212,6 @@ func PrepareSecret(namespace *v1.Namespace, secret *v1.Secret) *v1.Secret {
 		Type:       secret.Type,
 	}
 
-}
-
-func CopyAnnotations(m map[string]string) map[string]string {
-	copy := make(map[string]string)
-
-	for key, value := range m {
-		if key == constants.ManagedByAnnotationKey || key == constants.LastAppliedConfigurationAnnotationKey {
-			continue
-		}
-		copy[key] = value
-	}
-
-	return copy
 }
 
 func IsManagedBy(secret *v1.Secret) bool {

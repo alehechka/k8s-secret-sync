@@ -12,7 +12,7 @@ import (
 func Test_ListSecrets(t *testing.T) {
 	client := InitializeTestClientset()
 
-	client.CreateSecret(defaultNamespace, defaultSecret)
+	client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
 	secrets, err := client.ListSecrets(keyDefault)
 
@@ -34,7 +34,7 @@ func Test_ListSecrets_Empty(t *testing.T) {
 func Test_GetSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	client.CreateSecret(defaultNamespace, defaultSecret)
+	client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
 	secret, err := client.GetSecret(keyDefault, keyDefaultSecret)
 
@@ -54,7 +54,7 @@ func Test_GetSecret_NoSecret(t *testing.T) {
 func Test_DeleteSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	client.CreateSecret(defaultNamespace, defaultSecret)
+	client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
 	err := client.DeleteSecret(defaultNamespace, defaultSecret)
 
@@ -72,9 +72,9 @@ func Test_DeleteSecret_NoSecret(t *testing.T) {
 func Test_UpdateSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	client.CreateSecret(defaultNamespace, defaultSecret)
+	client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
-	err := client.UpdateSecret(defaultNamespace, defaultSecret)
+	err := client.UpdateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 
 	assert.NoError(t, err)
 }
@@ -82,7 +82,7 @@ func Test_UpdateSecret(t *testing.T) {
 func Test_UpdateSecret_NoSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	err := client.UpdateSecret(testNamespace, testSecret)
+	err := client.UpdateSecret(testSecretSyncRule, testNamespace, testSecret)
 
 	assert.Error(t, err)
 }
@@ -90,7 +90,7 @@ func Test_UpdateSecret_NoSecret(t *testing.T) {
 func Test_CreateSecret(t *testing.T) {
 	client := InitializeTestClientset()
 
-	err := client.CreateSecret(defaultNamespace, defaultSecret)
+	err := client.CreateSecret(testSecretSyncRule, defaultNamespace, defaultSecret)
 	assert.NoError(t, err)
 
 	secret, err := client.GetSecret(keyDefault, keyDefaultSecret)
@@ -170,7 +170,7 @@ func Test_PrepareSecret(t *testing.T) {
 	secret := *defaultSecret
 	secret.Annotations = map[string]string{constants.LastAppliedConfigurationAnnotationKey: "some-previous-config", "some-key": "some-value"}
 
-	prepared := pkg.PrepareSecret(testNamespace, &secret)
+	prepared := pkg.PrepareSecret(testSecretSyncRule, testNamespace, &secret)
 
 	assert.True(t, pkg.SecretsAreEqual(&secret, prepared))
 	assert.True(t, pkg.IsManagedBy(prepared))
