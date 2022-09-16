@@ -7,13 +7,30 @@ import (
 )
 
 func ruleLogger(rule *typesv1.SecretSyncRule) *log.Entry {
-	return log.WithFields(log.Fields{"name": rule.Name, "kind": "SecretSyncRule"})
+	return ruleNameLogger(rule.Name)
 }
 
-func secretLogger(secret *v1.Secret) *log.Entry {
-	return log.WithFields(log.Fields{"name": secret.Name, "kind": "Secret", "namespace": secret.Namespace})
+func ruleNameLogger(name string) *log.Entry {
+	return log.WithFields(log.Fields{"name": name, "kind": "SecretSyncRule"})
 }
 
 func namespaceLogger(namespace *v1.Namespace) *log.Entry {
-	return log.WithFields(log.Fields{"name": namespace.Name, "kind": "Namespace"})
+	return namespaceNameLogger(namespace.Name)
+}
+
+func namespaceNameLogger(namespace string) *log.Entry {
+	return log.WithFields(log.Fields{"name": namespace, "kind": "Namespace"})
+}
+
+func secretLogger(secret *v1.Secret, namespaces ...*v1.Namespace) *log.Entry {
+	namespace := secret.Namespace
+	if len(namespaces) > 0 {
+		namespace = namespaces[0].Name
+	}
+
+	return secretNameLogger(namespace, secret.Name)
+}
+
+func secretNameLogger(namespace, name string) *log.Entry {
+	return log.WithFields(log.Fields{"name": name, "kind": "Secret", "namespace": namespace})
 }
